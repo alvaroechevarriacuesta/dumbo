@@ -1,38 +1,8 @@
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import { useAuth } from './AuthContext';
+import { ContextService } from '../services/contextService';
 import type { Message, ChatContext as ChatContextType } from '../types/chat';
-
-const defaultContexts: ChatContextType[] = [
-  {
-    id: 'general',
-    name: 'General Chat',
-    description: 'General purpose conversation',
-    icon: 'Brain',
-  },
-  {
-    id: 'coding',
-    name: 'Code Assistant',
-    description: 'Programming help and code review',
-    icon: 'Code',
-  },
-  {
-    id: 'learning',
-    name: 'Learning Tutor',
-    description: 'Educational support and explanations',
-    icon: 'BookOpen',
-  },
-  {
-    id: 'creative',
-    name: 'Creative Writing',
-    description: 'Creative writing and brainstorming',
-    icon: 'Lightbulb',
-  },
-  {
-    id: 'productivity',
-    name: 'Productivity Coach',
-    description: 'Task management and productivity tips',
-    icon: 'Zap',
-  },
-];
+import type { DatabaseContext } from '../types/database';
 
 interface ChatSession {
   id: string;
@@ -46,13 +16,17 @@ interface ChatState {
   contexts: ChatContextType[];
   activeContextId: string | null;
   isStreaming: boolean;
+  isLoading: boolean;
+  error: string | null;
 }
 
 interface ChatContextValue extends ChatState {
   selectContext: (contextId: string) => void;
   sendMessage: (content: string) => Promise<void>;
-  addContext: (context: Omit<ChatContextType, 'id'>) => Promise<void>;
+  addContext: (context: { name: string; description?: string }) => Promise<void>;
+  deleteContext: (contextId: string) => Promise<void>;
   getCurrentMessages: () => Message[];
+  refreshContexts: () => Promise<void>;
 }
 
 const ChatContext = createContext<ChatContextValue | undefined>(undefined);
@@ -60,11 +34,14 @@ const ChatContext = createContext<ChatContextValue | undefined>(undefined);
 type ChatAction =
   | { type: 'SELECT_CONTEXT'; payload: string }
   | { type: 'ADD_MESSAGE'; payload: { contextId: string; message: Message } }
+  | { type: 'SET_CONTEXTS'; payload: ChatContextType[] }
   | { type: 'ADD_CONTEXT'; payload: ChatContextType }
+  | { type: 'REMOVE_CONTEXT'; payload: string }
   | { type: 'START_STREAMING' }
   | { type: 'STOP_STREAMING' }
-  | { type: 'LOAD_SESSIONS'; payload: Record<string, ChatSession> }
-  | { type: 'LOAD_CONTEXTS'; payload: ChatContextType[] };
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'LOAD_SESSIONS'; payload: Record<string, ChatSession> };
 
 const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
   switch (action.type) {
@@ -90,19 +67,34 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
           },
         },
       };
+    case 'SET_CONTEXTS':
+      return {
+        ...state,
+        contexts: action.payload,
+      };
     case 'ADD_CONTEXT':
       return {
         ...state,
         contexts: [...state.contexts, action.payload],
       };
+    case 'REMOVE_CONTEXT':
+      const filteredContexts = state.contexts.filter(ctx => ctx.id !== action.payload);
+      const newActiveId = state.activeContextId === action.payload ? null : state.activeContextId;
+      return {
+        ...state,
+        contexts: filteredContexts,
+        activeContextId: newActiveId,
+      };
     case 'START_STREAMING':
       return { ...state, isStreaming: true };
     case 'STOP_STREAMING':
       return { ...state, isStreaming: false };
+    case 'SET_LOADING':
+      return { ...state, isLoading: action.payload };
+    case 'SET_ERROR':
+      return { ...state, error: action.payload };
     case 'LOAD_SESSIONS':
       return { ...state, sessions: action.payload };
-    case 'LOAD_CONTEXTS':
-      return { ...state, contexts: action.payload };
     default:
       return state;
   }
@@ -110,18 +102,35 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
 
 const initialState: ChatState = {
   sessions: {},
-  contexts: defaultContexts,
+  contexts: [],
   activeContextId: null,
   isStreaming: false,
+  isLoading: false,
+  error: null,
 };
 
 export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(chatReducer, initialState);
+  const { user, isAuthenticated } = useAuth();
+
+  // Convert database context to chat context
+  const convertToContext = (dbContext: DatabaseContext): ChatContextType => ({
+    id: dbContext.id,
+    name: dbContext.name,
+    description: `Created ${new Date(dbContext.created_at).toLocaleDateString()}`,
+    icon: 'Brain',
+  });
+
+  // Load contexts from database when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      refreshContexts();
+    }
+  }, [isAuthenticated, user]);
 
   // Load sessions from localStorage on mount
-  React.useEffect(() => {
+  useEffect(() => {
     const stored = localStorage.getItem('chatSessions');
-    const storedContexts = localStorage.getItem('chatContexts');
     
     if (stored) {
       try {
@@ -138,26 +147,31 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.error('Failed to load chat sessions:', error);
       }
     }
-    
-    if (storedContexts) {
-      try {
-        const contexts = JSON.parse(storedContexts);
-        dispatch({ type: 'LOAD_CONTEXTS', payload: contexts });
-      } catch (error) {
-        console.error('Failed to load chat contexts:', error);
-      }
-    }
   }, []);
 
   // Save sessions to localStorage whenever they change
-  React.useEffect(() => {
+  useEffect(() => {
     localStorage.setItem('chatSessions', JSON.stringify(state.sessions));
   }, [state.sessions]);
 
-  // Save contexts to localStorage whenever they change
-  React.useEffect(() => {
-    localStorage.setItem('chatContexts', JSON.stringify(state.contexts));
-  }, [state.contexts]);
+  const refreshContexts = async (): Promise<void> => {
+    if (!user) return;
+
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: null });
+
+    try {
+      const dbContexts = await ContextService.getUserContexts(user.id);
+      const contexts = dbContexts.map(convertToContext);
+      dispatch({ type: 'SET_CONTEXTS', payload: contexts });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load contexts';
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      console.error('Failed to refresh contexts:', error);
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  };
 
   const selectContext = (contextId: string) => {
     dispatch({ type: 'SELECT_CONTEXT', payload: contextId });
@@ -186,66 +200,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    const responses = {
-      general: `I'm here to help with any questions or tasks you have. I can assist with:
-
-- **General conversation** and answering questions
-- **Problem solving** and brainstorming
-- **Information** on a wide variety of topics
-- **Analysis** and explanations
-
-What would you like to discuss?`,
-      coding: `I can help you with programming questions, code review, debugging, and best practices. Here are some ways I can assist:
-
-## Programming Support
-- **Code review** and optimization
-- **Debugging** help and troubleshooting
-- **Best practices** and design patterns
-- **Language-specific** guidance
-
-\`\`\`javascript
-// Example: I can help with code like this
-function greet(name) {
-  return \`Hello, \${name}!\`;
-}
-\`\`\`
-
-What coding challenge are you working on?`,
-      learning: `I'm ready to help you learn! I can explain concepts, provide examples, and guide you through complex topics.
-
-### Learning Support
-1. **Concept explanations** with examples
-2. **Step-by-step breakdowns** of complex topics
-3. **Practice problems** and exercises
-4. **Study strategies** and tips
-
-> *"Learning is a treasure that will follow its owner everywhere."* - Chinese Proverb
-
-What would you like to explore?`,
-      creative: `Let's unleash your creativity! I can help with writing, brainstorming, storytelling, and creative projects.
-
-## Creative Areas
-- **Writing** - stories, poems, scripts
-- **Brainstorming** - ideas and concepts
-- **Character development** and world-building
-- **Creative problem solving**
-
-*Ready to bring your ideas to life?* What's your creative vision?`,
-      productivity: `I'm here to help you optimize your workflow and boost productivity. 
-
-### Productivity Areas
-- [ ] **Task management** and organization
-- [ ] **Time management** strategies
-- [ ] **Workflow optimization**
-- [ ] **Goal setting** and tracking
-
-**Pro tip:** Start with small, manageable tasks to build momentum!
-
-What tasks or goals would you like to tackle more efficiently?`,
-    };
-
-    const responseContent = responses[state.activeContextId as keyof typeof responses] || 
-      "I'm ready to assist you with this context. How can I help?";
+    const responseContent = `I'm ready to help you with this context. How can I assist you today?`;
 
     const assistantMessage: Message = {
       id: (Date.now() + 1).toString(),
@@ -263,13 +218,27 @@ What tasks or goals would you like to tackle more efficiently?`,
     dispatch({ type: 'STOP_STREAMING' });
   };
 
-  const addContext = async (contextData: Omit<ChatContextType, 'id'>): Promise<void> => {
-    const newContext: ChatContextType = {
-      ...contextData,
-      id: `custom-${Date.now()}`,
-    };
-    
-    dispatch({ type: 'ADD_CONTEXT', payload: newContext });
+  const addContext = async (contextData: { name: string; description?: string }): Promise<void> => {
+    if (!user) throw new Error('User not authenticated');
+
+    try {
+      const dbContext = await ContextService.createContext(contextData);
+      const newContext = convertToContext(dbContext);
+      dispatch({ type: 'ADD_CONTEXT', payload: newContext });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create context';
+      throw new Error(errorMessage);
+    }
+  };
+
+  const deleteContext = async (contextId: string): Promise<void> => {
+    try {
+      await ContextService.deleteContext(contextId);
+      dispatch({ type: 'REMOVE_CONTEXT', payload: contextId });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete context';
+      throw new Error(errorMessage);
+    }
   };
 
   const getCurrentMessages = (): Message[] => {
@@ -285,7 +254,9 @@ What tasks or goals would you like to tackle more efficiently?`,
         selectContext,
         sendMessage,
         addContext,
+        deleteContext,
         getCurrentMessages,
+        refreshContexts,
       }}
     >
       {children}
