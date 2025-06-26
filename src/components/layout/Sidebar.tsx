@@ -40,17 +40,10 @@ const Sidebar: React.FC = () => {
     if (!newContextName.trim()) return;
     
     try {
-      await addContext({ name: newContextName.trim() });
+      const contextId = await addContext({ name: newContextName.trim() });
       setNewContextName('');
       setIsAddingContext(false);
-      
-      // Auto-select the newly created context
-      setTimeout(() => {
-        const newContext = contexts.find(c => c.name === newContextName.trim());
-        if (newContext) {
-          selectContext(newContext.id);
-        }
-      }, 100);
+      // Context is now auto-selected in the addContext function
     } catch (error) {
       console.error('Failed to create context:', error);
     }

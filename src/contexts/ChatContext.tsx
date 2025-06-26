@@ -23,7 +23,7 @@ interface ChatState {
 interface ChatContextValue extends ChatState {
   selectContext: (contextId: string) => void;
   sendMessage: (content: string) => Promise<void>;
-  addContext: (context: { name: string; description?: string }) => Promise<void>;
+  addContext: (context: { name: string; description?: string }) => Promise<string>;
   deleteContext: (contextId: string) => Promise<void>;
   getCurrentMessages: () => Message[];
   refreshContexts: () => Promise<void>;
@@ -225,6 +225,11 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const dbContext = await ContextService.createContext(contextData);
       const newContext = convertToContext(dbContext);
       dispatch({ type: 'ADD_CONTEXT', payload: newContext });
+      
+      // Auto-select the newly created context
+      dispatch({ type: 'SELECT_CONTEXT', payload: newContext.id });
+      
+      return newContext.id;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to create context';
       throw new Error(errorMessage);
