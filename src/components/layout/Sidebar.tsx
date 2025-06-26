@@ -1,15 +1,16 @@
 import React from 'react';
-import { X, User, Plus, Trash2 } from 'lucide-react';
+import { X, User, Plus, Info } from 'lucide-react';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
 import Button from '../ui/Button';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import AddContextModal from '../chat/AddContextModal';
+import ContextInfoModal from '../chat/ContextInfoModal';
 
 const Sidebar: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
-  const [deletingContextId, setDeletingContextId] = React.useState<string | null>(null);
+  const [selectedContextInfo, setSelectedContextInfo] = React.useState<{id: string, name: string} | null>(null);
   const { isOpen, close } = useSidebar();
   const { user } = useAuth();
   const { 
@@ -18,26 +19,12 @@ const Sidebar: React.FC = () => {
     contexts, 
     isLoading, 
     error, 
-    deleteContext,
     refreshContexts 
   } = useChat();
 
-  const handleDeleteContext = async (contextId: string, e: React.MouseEvent) => {
+  const handleShowContextInfo = (contextId: string, contextName: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    if (!confirm('Are you sure you want to delete this context? This action cannot be undone.')) {
-      return;
-    }
-
-    setDeletingContextId(contextId);
-    try {
-      await deleteContext(contextId);
-    } catch (error) {
-      console.error('Failed to delete context:', error);
-      alert('Failed to delete context. Please try again.');
-    } finally {
-      setDeletingContextId(null);
-    }
+    setSelectedContextInfo({ id: contextId, name: contextName });
   };
 
   const handleRetry = () => {
@@ -159,7 +146,6 @@ const Sidebar: React.FC = () => {
                 <div className="p-2">
                   {contexts.map((context) => {
                     const isActive = activeContextId === context.id;
-                    const isDeleting = deletingContextId === context.id;
                     
                     return (
                       <div
@@ -169,7 +155,7 @@ const Sidebar: React.FC = () => {
                             ? 'bg-primary-100 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800'
                             : 'hover:bg-secondary-100 dark:hover:bg-secondary-700 border border-transparent'
                         }`}
-                        onClick={() => !isDeleting && selectContext(context.id)}
+                        onClick={() => selectContext(context.id)}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
@@ -189,17 +175,12 @@ const Sidebar: React.FC = () => {
                             </p>
                           </div>
                           
-                          {/* Delete Button */}
+                          {/* Info Button */}
                           <button
-                            onClick={(e) => handleDeleteContext(context.id, e)}
-                            disabled={isDeleting}
-                            className="ml-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-error-100 dark:hover:bg-error-900/20 text-error-600 dark:text-error-400 disabled:opacity-50"
+                            onClick={(e) => handleShowContextInfo(context.id, context.name, e)}
+                            className="ml-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-600 dark:text-secondary-400"
                           >
-                            {isDeleting ? (
-                              <LoadingSpinner size="sm" />
-                            ) : (
-                              <Trash2 className="h-3 w-3" />
-                            )}
+                            <Info className="h-3 w-3" />
                           </button>
                         </div>
                       </div>
@@ -217,6 +198,16 @@ const Sidebar: React.FC = () => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
       />
+
+      {/* Context Info Modal */}
+      {selectedContextInfo && (
+        <ContextInfoModal
+          isOpen={!!selectedContextInfo}
+          onClose={() => setSelectedContextInfo(null)}
+          contextId={selectedContextInfo.id}
+          contextName={selectedContextInfo.name}
+        />
+      )}
     </>
   );
 };
