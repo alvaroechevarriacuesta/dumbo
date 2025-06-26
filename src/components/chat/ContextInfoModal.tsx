@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Upload, File, Globe, Trash2, Download, Edit2, Check } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import LoadingSpinner from '../ui/LoadingSpinner';
-import { ContextService } from '../../services/contextService';
+import { FileProcessingService } from '../../services/fileProcessingService';
 import { useChat } from '../../contexts/ChatContext';
 import type { DatabaseFile, DatabaseSite } from '../../types/database';
 
@@ -83,6 +84,13 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
   };
 
   const processUploads = async (uploadsToProcess: FileUpload[]) => {
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('User not authenticated');
+      return;
+    }
+
     for (const upload of uploadsToProcess) {
       try {
         // Update progress
@@ -90,18 +98,9 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
           u === upload ? { ...u, progress: 50 } : u
         ));
 
-        // Upload file to storage
-        const filePath = await ContextService.uploadFile(upload.file, contextId);
-
-        // Create file record in database
-        await ContextService.createFile({
-          name: upload.name,
-          context_id: contextId,
-          size: upload.file.size,
-          type: upload.file.type,
-          path: filePath,
-        });
-
+        // Process file upload (includes validation, text extraction, storage upload, and database record creation)
+        await FileProcessingService.processFileUpload(upload.file, contextId, user.id);
+        
         // Update progress to complete
         setUploads(prev => prev.map(u => 
           u === upload ? { ...u, progress: 100 } : u
@@ -142,7 +141,8 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
 
   const handleDeleteFile = async (fileId: string) => {
     try {
-      await ContextService.deleteFile(fileId);
+      const fileToDelete = files.find(f => f.id === fileId);
+      await FileProcessingService.deleteFile(fileId, fileToDelete?.path);
       setFiles(prev => prev.filter(f => f.id !== fileId));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete file';
@@ -309,7 +309,26 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
                             </p>
                             <p className="text-xs text-secondary-500">
                               {formatFileSize(file.size)} • {formatDate(file.created_at)}
+                              {file.processing_status && file.processing_status !== 'completed' && (
+                                <span className={`ml-2 px-2 py-1 rounded text-xs ${
+                                  file.processing_status === 'failed' 
+                                    ? 'bg-error-100 text-error-700 dark:bg-error-900/20 dark:text-error-400'
+                                    : 'bg-warning-100 text-warning-700 dark:bg-warning-900/20 dark:text-warning-400'
+                                }`}>
+                                  {file.processing_status}
+                                </span>
+                              )}
                             </p>
+                            {file.content && (
+                              <p className="text-xs text-secondary-400 mt-1 truncate">
+                                Content: {file.content.substring(0, 100)}...
+                              </p>
+                            )}
+                            {file.processing_error && (
+                              <p className="text-xs text-error-600 dark:text-error-400 mt-1">
+                                Error: {file.processing_error}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -319,7 +338,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
                               size="sm"
                               onClick={async () => {
                                 try {
-                                  const url = await ContextService.getFileUrl(file.path!);
+                                  const url = await FileProcessingService.getFileUrl(file.path!);
                                   window.open(url, '_blank');
                                 } catch (err) {
                                   console.error('Failed to get file URL:', err);

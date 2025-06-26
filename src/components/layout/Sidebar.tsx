@@ -1,16 +1,18 @@
 import React from 'react';
-import { X, User, Plus, Info, Check } from 'lucide-react';
+import { X, User, Plus, Info, Check, Search } from 'lucide-react';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
 import Button from '../ui/Button';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import ContextInfoModal from '../chat/ContextInfoModal';
+import FileSearchModal from '../ui/FileSearchModal';
 
 const Sidebar: React.FC = () => {
   const [isAddingContext, setIsAddingContext] = React.useState(false);
   const [newContextName, setNewContextName] = React.useState('');
   const [selectedContextInfo, setSelectedContextInfo] = React.useState<{id: string, name: string} | null>(null);
+  const [showFileSearch, setShowFileSearch] = React.useState(false);
   const { isOpen, close } = useSidebar();
   const { user } = useAuth();
   const { 
@@ -153,6 +155,7 @@ const Sidebar: React.FC = () => {
             <>
               {/* Add Context Button */}
               <div className="p-4 border-b border-secondary-200 dark:border-secondary-700">
+                <div className="space-y-2">
                 {isAddingContext ? (
                   <div className="flex items-center space-x-2">
                     <input
@@ -190,6 +193,18 @@ const Sidebar: React.FC = () => {
                     Add Context
                   </Button>
                 )}
+                  
+                  {/* File Search Button */}
+                  <Button
+                    onClick={() => setShowFileSearch(true)}
+                    variant="outline"
+                    className="w-full justify-center"
+                    size="sm"
+                  >
+                    <Search className="h-4 w-4 mr-2" />
+                    Search Files
+                  </Button>
+                </div>
               </div>
 
               {/* Context List */}
@@ -255,6 +270,16 @@ const Sidebar: React.FC = () => {
           contextName={selectedContextInfo.name}
         />
       )}
+
+      {/* File Search Modal */}
+      <FileSearchModal
+        isOpen={showFileSearch}
+        onClose={() => setShowFileSearch(false)}
+        onFileSelect={(file) => {
+          console.log('Selected file:', file);
+          setShowFileSearch(false);
+        }}
+      />
     </>
   );
 };

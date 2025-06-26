@@ -19,6 +19,9 @@ export interface DatabaseFile {
   size: number;
   type: string;
   path?: string;
+  content?: string;
+  processing_status?: 'pending' | 'processing' | 'completed' | 'failed';
+  processing_error?: string;
   created_at: string;
   updated_at: string;
 }
@@ -36,4 +39,5 @@ export interface CreateFileData {
   size: number;
   type: string;
   path?: string;
+  content?: string;
 }

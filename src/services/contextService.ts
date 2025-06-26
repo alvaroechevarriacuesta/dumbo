@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { FileProcessingService } from './fileProcessingService';
 import type { DatabaseContext, CreateContextData, DatabaseFile, DatabaseSite, CreateFileData } from '../types/database';
 
 export class ContextService {
@@ -98,28 +99,18 @@ export class ContextService {
   }
 
   static async uploadFile(file: File, contextId: string): Promise<string> {
-    // Generate a unique file path
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const filePath = `contexts/${contextId}/${fileName}`;
-
-    // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
-      .from('files')
-      .upload(filePath, file);
-
-    if (error) {
-      throw new Error(`Failed to upload file: ${error.message}`);
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      throw new Error('User not authenticated');
     }
 
-    return filePath;
+    // Use the new file processing service
+    const fileRecord = await FileProcessingService.processFileUpload(file, contextId, user.id);
+    return fileRecord.path || '';
   }
 
   static async getFileUrl(path: string): Promise<string> {
-    const { data } = supabase.storage
-      .from('files')
-      .getPublicUrl(path);
-
-    return data.publicUrl;
+    return FileProcessingService.getFileUrl(path);
   }
 }
