@@ -1,0 +1,125 @@
+import { supabase } from '../lib/supabase';
+import type { DatabaseContext, CreateContextData, DatabaseFile, DatabaseSite, CreateFileData } from '../types/database';
+
+export class ContextService {
+  static async getUserContexts(userId: string): Promise<DatabaseContext[]> {
+    const { data, error } = await supabase
+      .from('contexts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to fetch contexts: ${error.message}`);
+    }
+
+    return data || [];
+  }
+
+  static async createContext(contextData: CreateContextData): Promise<DatabaseContext> {
+    const { data, error } = await supabase
+      .from('contexts')
+      .insert([{
+        name: contextData.name,
+        // Note: user_id will be set automatically by the database default
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create context: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  static async deleteContext(contextId: string): Promise<void> {
+    const { error } = await supabase
+      .from('contexts')
+      .delete()
+      .eq('id', contextId);
+
+    if (error) {
+      throw new Error(`Failed to delete context: ${error.message}`);
+    }
+  }
+
+  static async getContextFiles(contextId: string): Promise<DatabaseFile[]> {
+    const { data, error } = await supabase
+      .from('files')
+      .select('*')
+      .eq('context_id', contextId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to fetch files: ${error.message}`);
+    }
+
+    return data || [];
+  }
+
+  static async getContextSites(contextId: string): Promise<DatabaseSite[]> {
+    const { data, error } = await supabase
+      .from('sites')
+      .select('*')
+      .eq('context_id', contextId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to fetch sites: ${error.message}`);
+    }
+
+    return data || [];
+  }
+
+  static async createFile(fileData: CreateFileData): Promise<DatabaseFile> {
+    const { data, error } = await supabase
+      .from('files')
+      .insert([fileData])
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create file: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  static async deleteFile(fileId: string): Promise<void> {
+    const { error } = await supabase
+      .from('files')
+      .delete()
+      .eq('id', fileId);
+
+    if (error) {
+      throw new Error(`Failed to delete file: ${error.message}`);
+    }
+  }
+
+  static async uploadFile(file: File, contextId: string): Promise<string> {
+    // Generate a unique file path
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `contexts/${contextId}/${fileName}`;
+
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('files')
+      .upload(filePath, file);
+
+    if (error) {
+      throw new Error(`Failed to upload file: ${error.message}`);
+    }
+
+    return filePath;
+  }
+
+  static async getFileUrl(path: string): Promise<string> {
+    const { data } = supabase.storage
+      .from('files')
+      .getPublicUrl(path);
+
+    return data.publicUrl;
+  }
+}

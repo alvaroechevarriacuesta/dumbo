@@ -20,7 +20,8 @@
     "clsx": "^2.0.0",
     "react-markdown": "^9.0.1",
     "remark-gfm": "^4.0.0",
-    "rehype-highlight": "^7.0.0"
+    "rehype-highlight": "^7.0.0",
+    "@supabase/supabase-js": "^2.39.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
