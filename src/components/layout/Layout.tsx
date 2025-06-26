@@ -14,14 +14,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="h-screen flex bg-secondary-50 dark:bg-secondary-900 overflow-hidden">
       {/* Sidebar - Width changes based on state */}
       <div className={`transition-all duration-300 ease-in-out ${
-        isOpen ? 'w-full md:w-80 md:border-r md:border-secondary-200 md:dark:border-secondary-700' : 'w-0'
+        isOpen ? 'w-full lg:w-80 lg:border-r lg:border-secondary-200 lg:dark:border-secondary-700' : 'w-0'
       } flex-shrink-0 overflow-hidden`}>
         <Sidebar />
       </div>
 
       {/* Main Content - Always takes remaining space */}
       <div className={`flex-col min-w-0 ${
-        isOpen ? 'hidden md:flex md:flex-1' : 'flex flex-1'
+        isOpen ? 'hidden lg:flex lg:flex-1' : 'flex flex-1'
       }`}>
         <Header />
         <main className="flex-1 overflow-hidden">
