@@ -1,9 +1,10 @@
 import { supabase } from '../lib/supabase';
 import type { DatabaseFile } from '../types/database';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
 
 // Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 // PDF parsing functionality
 const parsePDF = async (file: File): Promise<string> => {
