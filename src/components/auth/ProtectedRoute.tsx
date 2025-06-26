@@ -13,7 +13,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-secondary-50 dark:bg-secondary-900">
-        <LoadingSpinner size="lg" />
+        <div className="text-center">
+          <LoadingSpinner size="lg" />
+          <p className="mt-4 text-secondary-600 dark:text-secondary-400">
+            Checking authentication...
+          </p>
+        </div>
       </div>
     );
   }

@@ -65,6 +65,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Check for existing session
     const checkSession = async () => {
       try {
+        dispatch({ type: 'AUTH_START' });
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -83,7 +84,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           };
           dispatch({ type: 'AUTH_SUCCESS', payload: user });
         } else {
-          dispatch({ type: 'AUTH_LOGOUT' });
+          dispatch({ type: 'AUTH_ERROR', payload: 'No active session' });
         }
       } catch (error) {
         console.error('Session check error:', error);
