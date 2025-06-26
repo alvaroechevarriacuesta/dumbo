@@ -1,16 +1,33 @@
 import { supabase } from '../lib/supabase';
 import type { DatabaseFile } from '../types/database';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js`;
 
 // PDF parsing functionality
 const parsePDF = async (file: File): Promise<string> => {
   try {
-    // Dynamic import for pdf-parse to handle browser environment
-    const pdfParse = await import('pdf-parse');
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = new Uint8Array(arrayBuffer);
     
-    const data = await pdfParse.default(buffer);
-    return data.text;
+    // Load PDF document using PDF.js
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+    
+    // Extract text from each page
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      
+      // Combine text items from the page
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+      
+      fullText += pageText + '\n';
+    }
+    
+    return fullText.trim();
   } catch (error) {
     console.error('PDF parsing error:', error);
     throw new Error('Failed to parse PDF file');
