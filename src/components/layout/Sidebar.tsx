@@ -59,14 +59,6 @@ const Sidebar: React.FC = () => {
 
   return (
     <>
-      {/* Mobile Overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-          onClick={close}
-        />
-      )}
-
       {/* Sidebar */}
       <div
         className="w-80 h-full bg-white dark:bg-secondary-800 flex flex-col"
