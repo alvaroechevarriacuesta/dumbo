@@ -74,9 +74,8 @@ const AuthForm: React.FC = () => {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {!isLogin && (
-              <Input
-                label="Username"
-                {...register('username')}
+              <strong>Create an account or sign in</strong><br />
+              Your data is securely stored with Supabase
                 error={errors.username?.message}
                 placeholder="Enter your username"
               />

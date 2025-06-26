@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import { supabase } from '../lib/supabase';
 import type { User, LoginCredentials, SignupCredentials, AuthState } from '../types/auth';
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
   signup: (credentials: SignupCredentials) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -53,7 +54,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
-  isLoading: false,
+  isLoading: true, // Start with loading true to check session
   error: null,
 };
 
@@ -61,42 +62,84 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   useEffect(() => {
-    // Check for stored user session
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
+    // Check for existing session
+    const checkSession = async () => {
       try {
-        const user = JSON.parse(storedUser);
-        dispatch({ type: 'AUTH_SUCCESS', payload: user });
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          dispatch({ type: 'AUTH_ERROR', payload: error.message });
+          return;
+        }
+
+        if (session?.user) {
+          const user: User = {
+            id: session.user.id,
+            email: session.user.email!,
+            username: session.user.user_metadata?.username || session.user.email!.split('@')[0],
+            avatar: session.user.user_metadata?.avatar_url,
+            createdAt: new Date(session.user.created_at),
+          };
+          dispatch({ type: 'AUTH_SUCCESS', payload: user });
+        } else {
+          dispatch({ type: 'AUTH_LOGOUT' });
+        }
       } catch (error) {
-        localStorage.removeItem('user');
+        console.error('Session check error:', error);
+        dispatch({ type: 'AUTH_ERROR', payload: 'Failed to check authentication status' });
       }
-    }
+    };
+
+    checkSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          const user: User = {
+            id: session.user.id,
+            email: session.user.email!,
+            username: session.user.user_metadata?.username || session.user.email!.split('@')[0],
+            avatar: session.user.user_metadata?.avatar_url,
+            createdAt: new Date(session.user.created_at),
+          };
+          dispatch({ type: 'AUTH_SUCCESS', payload: user });
+        } else if (event === 'SIGNED_OUT') {
+          dispatch({ type: 'AUTH_LOGOUT' });
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (credentials: LoginCredentials): Promise<void> => {
     dispatch({ type: 'AUTH_START' });
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock validation
-      if (credentials.email === 'demo@example.com' && credentials.password === 'password') {
-        const user: User = {
-          id: '1',
-          email: credentials.email,
-          username: 'Demo User',
-          avatar: `https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2`,
-          createdAt: new Date(),
-        };
-        
-        localStorage.setItem('user', JSON.stringify(user));
-        dispatch({ type: 'AUTH_SUCCESS', payload: user });
-      } else {
-        throw new Error('Invalid email or password');
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: credentials.email,
+        password: credentials.password,
+      });
+
+      if (error) {
+        throw error;
       }
-    } catch (error) {
-      dispatch({ type: 'AUTH_ERROR', payload: error instanceof Error ? error.message : 'Login failed' });
+
+      if (data.user) {
+        const user: User = {
+          id: data.user.id,
+          email: data.user.email!,
+          username: data.user.user_metadata?.username || data.user.email!.split('@')[0],
+          avatar: data.user.user_metadata?.avatar_url,
+          createdAt: new Date(data.user.created_at),
+        };
+        dispatch({ type: 'AUTH_SUCCESS', payload: user });
+      }
+    } catch (error: any) {
+      dispatch({ type: 'AUTH_ERROR', payload: error.message || 'Login failed' });
+      throw error;
     }
   };
 
@@ -104,27 +147,54 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     dispatch({ type: 'AUTH_START' });
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const user: User = {
-        id: Date.now().toString(),
+      const { data, error } = await supabase.auth.signUp({
         email: credentials.email,
-        username: credentials.username,
-        avatar: `https://images.pexels.com/photos/1040880/pexels-photo-1040880.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2`,
-        createdAt: new Date(),
-      };
-      
-      localStorage.setItem('user', JSON.stringify(user));
-      dispatch({ type: 'AUTH_SUCCESS', payload: user });
-    } catch (error) {
-      dispatch({ type: 'AUTH_ERROR', payload: error instanceof Error ? error.message : 'Signup failed' });
+        password: credentials.password,
+        options: {
+          data: {
+            username: credentials.username,
+          },
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
+        // If email confirmation is disabled, user will be automatically signed in
+        if (data.session) {
+          const user: User = {
+            id: data.user.id,
+            email: data.user.email!,
+            username: credentials.username,
+            avatar: data.user.user_metadata?.avatar_url,
+            createdAt: new Date(data.user.created_at),
+          };
+          dispatch({ type: 'AUTH_SUCCESS', payload: user });
+        } else {
+          // Email confirmation required
+          dispatch({ type: 'AUTH_LOGOUT' });
+          // You might want to show a message about email confirmation
+        }
+      }
+    } catch (error: any) {
+      dispatch({ type: 'AUTH_ERROR', payload: error.message || 'Signup failed' });
+      throw error;
     }
   };
 
-  const logout = (): void => {
-    localStorage.removeItem('user');
-    dispatch({ type: 'AUTH_LOGOUT' });
+  const logout = async (): Promise<void> => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Logout error:', error);
+      }
+      dispatch({ type: 'AUTH_LOGOUT' });
+    } catch (error) {
+      console.error('Logout error:', error);
+      dispatch({ type: 'AUTH_LOGOUT' });
+    }
   };
 
   return (
