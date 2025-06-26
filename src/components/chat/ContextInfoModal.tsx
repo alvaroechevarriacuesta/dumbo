@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Upload, File, Globe, Trash2, Download } from 'lucide-react';
+import { X, Upload, File, Globe, Trash2, Download, Edit2, Check } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import LoadingSpinner from '../ui/LoadingSpinner';
@@ -34,8 +34,14 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
   const [uploads, setUploads] = useState<FileUpload[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedName, setEditedName] = useState(contextName);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { deleteContext } = useChat();
+  const { deleteContext, refreshContexts } = useChat();
+
+  useEffect(() => {
+    setEditedName(contextName);
+  }, [contextName]);
 
   useEffect(() => {
     if (isOpen && contextId) {
@@ -155,6 +161,32 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
     }
   };
 
+  const handleSaveEdit = async () => {
+    if (!editedName.trim() || editedName === contextName) {
+      setIsEditing(false);
+      setEditedName(contextName);
+      return;
+    }
+
+    try {
+      // TODO: Implement updateContext in ContextService
+      // await ContextService.updateContext(contextId, { name: editedName.trim() });
+      // await refreshContexts();
+      setIsEditing(false);
+      console.log('Context rename not yet implemented');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update context';
+      setError(errorMessage);
+      setEditedName(contextName);
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditedName(contextName);
+  };
+
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -175,12 +207,70 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
 
   return (
     <>
-      <Modal 
-        isOpen={isOpen} 
-        onClose={onClose} 
-        title={contextName} 
-        className="max-w-4xl"
-      >
+      <div className={`fixed inset-0 z-50 flex items-center justify-center ${isOpen ? '' : 'hidden'}`}>
+        {/* Backdrop */}
+        <div
+          className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+          onClick={onClose}
+        />
+        
+        {/* Modal */}
+        <div className="relative bg-white dark:bg-secondary-800 rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-secondary-200 dark:border-secondary-700">
+            <div className="flex items-center space-x-3 flex-1">
+              {isEditing ? (
+                <div className="flex items-center space-x-2 flex-1">
+                  <input
+                    type="text"
+                    value={editedName}
+                    onChange={(e) => setEditedName(e.target.value)}
+                    className="flex-1 px-3 py-2 text-lg font-semibold border border-secondary-300 dark:border-secondary-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-secondary-800 text-secondary-900 dark:text-white"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSaveEdit();
+                      } else if (e.key === 'Escape') {
+                        handleCancelEdit();
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={handleSaveEdit}
+                    size="sm"
+                    className="p-2"
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <h2 className="text-lg font-semibold text-secondary-900 dark:text-white">
+                    {contextName}
+                  </h2>
+                  <Button
+                    onClick={() => setIsEditing(true)}
+                    variant="ghost"
+                    size="sm"
+                    className="p-2"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="p-1"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+          
+          {/* Content */}
+          <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
         <div className="space-y-6">
           {/* Error Display */}
           {error && (
@@ -372,11 +462,19 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
                 >
                   Delete Context
                 </Button>
+                <Button
+                  onClick={onClose}
+                  variant="outline"
+                >
+                  Close
+                </Button>
               </div>
             </>
           )}
         </div>
-      </Modal>
+          </div>
+        </div>
+      </div>
 
       {/* Delete Confirmation Modal */}
       <Modal
