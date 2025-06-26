@@ -60,7 +60,7 @@ const Sidebar: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 min-h-[57px] border-b border-secondary-200 dark:border-secondary-700">
           <h2 className="text-lg font-semibold text-secondary-900 dark:text-white">
-            Contexts
+            Dumbo
           </h2>
           <Button
             variant="ghost"
