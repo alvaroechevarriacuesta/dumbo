@@ -1,15 +1,15 @@
 import React from 'react';
-import { X, User, Plus, Info } from 'lucide-react';
+import { X, User, Plus, Info, Check } from 'lucide-react';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
 import Button from '../ui/Button';
 import LoadingSpinner from '../ui/LoadingSpinner';
-import AddContextModal from '../chat/AddContextModal';
 import ContextInfoModal from '../chat/ContextInfoModal';
 
 const Sidebar: React.FC = () => {
-  const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
+  const [isAddingContext, setIsAddingContext] = React.useState(false);
+  const [newContextName, setNewContextName] = React.useState('');
   const [selectedContextInfo, setSelectedContextInfo] = React.useState<{id: string, name: string} | null>(null);
   const { isOpen, close } = useSidebar();
   const { user } = useAuth();
@@ -19,7 +19,8 @@ const Sidebar: React.FC = () => {
     contexts, 
     isLoading, 
     error, 
-    refreshContexts 
+    refreshContexts,
+    addContext
   } = useChat();
 
   const handleShowContextInfo = (contextId: string, contextName: string, e: React.MouseEvent) => {
@@ -29,6 +30,35 @@ const Sidebar: React.FC = () => {
 
   const handleRetry = () => {
     refreshContexts();
+  };
+
+  const handleAddContext = () => {
+    setIsAddingContext(true);
+  };
+
+  const handleSaveContext = async () => {
+    if (!newContextName.trim()) return;
+    
+    try {
+      await addContext({ name: newContextName.trim() });
+      setNewContextName('');
+      setIsAddingContext(false);
+      
+      // Auto-select the newly created context
+      setTimeout(() => {
+        const newContext = contexts.find(c => c.name === newContextName.trim());
+        if (newContext) {
+          selectContext(newContext.id);
+        }
+      }, 100);
+    } catch (error) {
+      console.error('Failed to create context:', error);
+    }
+  };
+
+  const handleCancelAdd = () => {
+    setNewContextName('');
+    setIsAddingContext(false);
   };
 
   return (
@@ -115,11 +145,11 @@ const Sidebar: React.FC = () => {
                   No contexts yet
                 </p>
                 <Button
-                  onClick={() => setIsAddModalOpen(true)}
+                  onClick={handleAddContext}
                   className="w-full"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Context
+                  Add Your First Context
                 </Button>
               </div>
             </div>
@@ -130,15 +160,43 @@ const Sidebar: React.FC = () => {
             <>
               {/* Add Context Button */}
               <div className="p-4 border-b border-secondary-200 dark:border-secondary-700">
-                <Button
-                  onClick={() => setIsAddModalOpen(true)}
-                  variant="outline"
-                  className="w-full justify-center"
-                  size="sm"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Context
-                </Button>
+                {isAddingContext ? (
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={newContextName}
+                      onChange={(e) => setNewContextName(e.target.value)}
+                      placeholder="Context name..."
+                      className="flex-1 px-3 py-2 text-sm border border-secondary-300 dark:border-secondary-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-secondary-800 text-secondary-900 dark:text-white"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSaveContext();
+                        } else if (e.key === 'Escape') {
+                          handleCancelAdd();
+                        }
+                      }}
+                    />
+                    <Button
+                      onClick={handleSaveContext}
+                      size="sm"
+                      className="p-2"
+                      disabled={!newContextName.trim()}
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={handleAddContext}
+                    variant="outline"
+                    className="w-full justify-center"
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Context
+                  </Button>
+                )}
               </div>
 
               {/* Context List */}
@@ -176,12 +234,14 @@ const Sidebar: React.FC = () => {
                           </div>
                           
                           {/* Info Button */}
-                          <button
+                          <div className="flex items-center justify-center">
+                            <button
                             onClick={(e) => handleShowContextInfo(context.id, context.name, e)}
-                            className="ml-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-600 dark:text-secondary-400"
+                              className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-600 dark:text-secondary-400"
                           >
-                            <Info className="h-3 w-3" />
+                              <Info className="h-4 w-4" />
                           </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -192,12 +252,6 @@ const Sidebar: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* Add Context Modal */}
-      <AddContextModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-      />
 
       {/* Context Info Modal */}
       {selectedContextInfo && (

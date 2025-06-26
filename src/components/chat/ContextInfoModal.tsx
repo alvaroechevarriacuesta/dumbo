@@ -178,7 +178,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
       <Modal 
         isOpen={isOpen} 
         onClose={onClose} 
-        title={`Context: ${contextName}`} 
+        title={contextName} 
         className="max-w-4xl"
       >
         <div className="space-y-6">
@@ -198,73 +198,12 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
 
           {!isLoading && (
             <>
-              {/* File Upload Area */}
+              {/* Files List */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium text-secondary-900 dark:text-white">
                   Files
                 </h3>
                 
-                {/* Drag and Drop Area */}
-                <div
-                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-                    isDragOver
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                      : 'border-secondary-300 dark:border-secondary-600 hover:border-primary-400 dark:hover:border-primary-500'
-                  }`}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                >
-                  <Upload className="h-8 w-8 mx-auto mb-2 text-secondary-400" />
-                  <p className="text-secondary-600 dark:text-secondary-400 mb-2">
-                    Drag and drop files here, or click to select
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Choose Files
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => handleFileSelect(e.target.files)}
-                  />
-                </div>
-
-                {/* Upload Progress */}
-                {uploads.length > 0 && (
-                  <div className="space-y-2">
-                    {uploads.map((upload, index) => (
-                      <div key={index} className="p-3 bg-secondary-50 dark:bg-secondary-800 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-secondary-900 dark:text-white">
-                            {upload.name}
-                          </span>
-                          <span className="text-xs text-secondary-500">
-                            {upload.progress}%
-                          </span>
-                        </div>
-                        <div className="w-full bg-secondary-200 dark:bg-secondary-700 rounded-full h-2">
-                          <div
-                            className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${upload.progress}%` }}
-                          />
-                        </div>
-                        {upload.error && (
-                          <p className="text-xs text-error-600 dark:text-error-400 mt-1">
-                            {upload.error}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Files List */}
                 {files.length > 0 ? (
                   <div className="space-y-2">
                     {files.map((file) => (
@@ -362,6 +301,69 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
                 )}
               </div>
 
+              {/* Upload Progress */}
+              {uploads.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-secondary-900 dark:text-white">
+                    Uploading...
+                  </h4>
+                  {uploads.map((upload, index) => (
+                    <div key={index} className="p-3 bg-secondary-50 dark:bg-secondary-800 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-secondary-900 dark:text-white">
+                          {upload.name}
+                        </span>
+                        <span className="text-xs text-secondary-500">
+                          {upload.progress}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-secondary-200 dark:bg-secondary-700 rounded-full h-2">
+                        <div
+                          className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${upload.progress}%` }}
+                        />
+                      </div>
+                      {upload.error && (
+                        <p className="text-xs text-error-600 dark:text-error-400 mt-1">
+                          {upload.error}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* File Upload Area - Moved to bottom */}
+              <div
+                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                  isDragOver
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                    : 'border-secondary-300 dark:border-secondary-600 hover:border-primary-400 dark:hover:border-primary-500'
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <Upload className="h-8 w-8 mx-auto mb-2 text-secondary-400" />
+                <p className="text-secondary-600 dark:text-secondary-400 mb-2">
+                  Drag and drop files here, or click to select
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Choose Files
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleFileSelect(e.target.files)}
+                />
+              </div>
+
               {/* Actions */}
               <div className="flex justify-between pt-4 border-t border-secondary-200 dark:border-secondary-700">
                 <Button
@@ -369,9 +371,6 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
                   onClick={() => setShowDeleteConfirm(true)}
                 >
                   Delete Context
-                </Button>
-                <Button variant="outline" onClick={onClose}>
-                  Close
                 </Button>
               </div>
             </>
