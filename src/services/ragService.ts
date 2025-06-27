@@ -33,6 +33,11 @@ export class RAGService {
       // Generate embedding for the query
       const queryEmbedding = await openaiService.generateEmbedding(query);
       
+      // Validate query embedding
+      if (!queryEmbedding || queryEmbedding.length === 0) {
+        throw new Error('Failed to generate valid query embedding');
+      }
+      
       // Search for relevant chunks
       const relevantChunks = await ChunkService.searchSimilarChunks(
         contextId,
@@ -111,6 +116,11 @@ export class RAGService {
       
       // Generate embedding for the query
       const queryEmbedding = await openaiService.generateEmbedding(query);
+      
+      // Validate query embedding
+      if (!queryEmbedding || queryEmbedding.length === 0) {
+        throw new Error('Failed to generate valid query embedding');
+      }
       
       // Search for relevant chunks
       const relevantChunks = await ChunkService.searchSimilarChunks(

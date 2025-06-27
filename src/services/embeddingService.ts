@@ -137,7 +137,8 @@ export class EmbeddingService {
    */
   static cosineSimilarity(a: number[], b: number[]): number {
     if (a.length !== b.length) {
-      throw new Error('Vectors must have the same length');
+      console.warn(`Vector dimension mismatch: query=${a.length}, stored=${b.length}. Skipping similarity calculation.`);
+      return 0; // Return 0 similarity for mismatched dimensions
     }
     
     let dotProduct = 0;
@@ -151,5 +152,12 @@ export class EmbeddingService {
     }
     
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+  }
+
+  /**
+   * Validate embedding dimensions
+   */
+  static validateEmbeddingDimensions(embedding: number[], expectedDimension: number = 1536): boolean {
+    return embedding && embedding.length === expectedDimension;
   }
 }

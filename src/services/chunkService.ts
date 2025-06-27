@@ -111,29 +111,42 @@ export class ChunkService {
       return [];
     }
 
-    // Calculate similarity scores
-    const results: ChunkSearchResult[] = chunks.map(chunk => {
-      const similarity = EmbeddingService.cosineSimilarity(
-        queryEmbedding,
-        chunk.embedding
-      );
+    // Filter out chunks with invalid embeddings and calculate similarity scores
+    const validResults: ChunkSearchResult[] = [];
+    
+    for (const chunk of chunks) {
+      // Validate embedding dimensions
+      if (!EmbeddingService.validateEmbeddingDimensions(chunk.embedding, queryEmbedding.length)) {
+        console.warn(`Skipping chunk ${chunk.id} due to dimension mismatch: expected ${queryEmbedding.length}, got ${chunk.embedding?.length || 'undefined'}`);
+        continue;
+      }
       
-      return {
-        chunk: {
-          id: chunk.id,
-          content: chunk.content,
-          embedding: chunk.embedding,
-          file_id: chunk.file_id,
-          site_id: chunk.site_id,
-          metadata: chunk.metadata,
-          created_at: chunk.created_at,
-        },
-        similarity,
-      };
-    });
+      try {
+        const similarity = EmbeddingService.cosineSimilarity(
+          queryEmbedding,
+          chunk.embedding
+        );
+        
+        validResults.push({
+          chunk: {
+            id: chunk.id,
+            content: chunk.content,
+            embedding: chunk.embedding,
+            file_id: chunk.file_id,
+            site_id: chunk.site_id,
+            metadata: chunk.metadata,
+            created_at: chunk.created_at,
+          },
+          similarity,
+        });
+      } catch (error) {
+        console.warn(`Error calculating similarity for chunk ${chunk.id}:`, error);
+        continue;
+      }
+    }
 
     // Sort by similarity (highest first) and return top results
-    return results
+    return validResults
       .sort((a, b) => b.similarity - a.similarity)
       .slice(0, limit);
   }
