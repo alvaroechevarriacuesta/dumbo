@@ -5,6 +5,7 @@ interface SidebarContextType {
   toggle: () => void;
   close: () => void;
   open: () => void;
+  openWithAction?: (action?: 'add-context' | 'view-all') => void;
 }
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
@@ -39,8 +40,14 @@ export const SidebarProvider: React.FC<{ children: ReactNode }> = ({ children })
     localStorage.setItem('sidebarOpen', JSON.stringify(true));
   };
 
+  const openWithAction = (action?: 'add-context' | 'view-all') => {
+    open();
+    // We can add action-specific logic here later if needed
+    // For now, just opening the sidebar is sufficient
+  };
+
   return (
-    <SidebarContext.Provider value={{ isOpen, toggle, close, open }}>
+    <SidebarContext.Provider value={{ isOpen, toggle, close, open, openWithAction }}>
       {children}
     </SidebarContext.Provider>
   );
