@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import { useChat } from '../../contexts/ChatContext';
 import Button from '../ui/Button';
+import WelcomeScreen from './WelcomeScreen';
 import 'highlight.js/styles/github-dark.css';
 
 const ChatInterface: React.FC = () => {
@@ -51,23 +52,7 @@ const ChatInterface: React.FC = () => {
   };
 
   if (!activeContextId) {
-    return (
-      <div className="h-full flex items-center justify-center bg-white dark:bg-secondary-900">
-        <div className="text-center max-w-md mx-auto px-4">
-          <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-r from-primary-500 to-accent-500 rounded-full flex items-center justify-center">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-          </div>
-          <h3 className="text-2xl font-semibold text-secondary-900 dark:text-white mb-3">
-            Welcome to ChatApp
-          </h3>
-          <p className="text-secondary-600 dark:text-secondary-400 leading-relaxed">
-            Select a context from the sidebar to start a specialized conversation with your AI assistant.
-          </p>
-        </div>
-      </div>
-    );
+    return <WelcomeScreen />;
   }
 
   return (
