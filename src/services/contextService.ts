@@ -249,8 +249,8 @@ export class ContextService {
       let textContent: string;
       
       // Extract text based on file type
-      if (PDFService.isPDF(file)) {
-        textContent = await PDFService.extractText(file);
+     if (file.type === 'application/pdf') {
+       textContent = await PDFService.extractTextFromPDF(file);
       } else if (file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt')) {
         textContent = await file.text();
       } else {
