@@ -24,10 +24,17 @@ export class OpenAIService {
       const response = await this.client.embeddings.create({
         model: 'text-embedding-3-large',
         input: text,
-        dimensions: 1536, // Explicitly set to 1536 dimensions to match database
+        dimensions: 1536, // Force 1536 dimensions to match stored chunks
       });
 
-      return response.data[0].embedding;
+      const embedding = response.data[0].embedding;
+      
+      // Double-check dimensions
+      if (embedding.length !== 1536) {
+        throw new Error(`OpenAI returned embedding with ${embedding.length} dimensions, expected 1536`);
+      }
+
+      return embedding;
     } catch (error) {
       console.error('OpenAI embedding error:', error);
       throw new Error('Failed to generate embedding');
