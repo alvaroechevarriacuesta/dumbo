@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, Mic } from 'lucide-react';
+import { Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -251,7 +251,7 @@ const ChatInterface: React.FC = () => {
                     setMessage(e.target.value);
                   }}
                   placeholder="Type your message..."
-                  className="w-full px-6 py-4 pr-24 resize-none focus:outline-none bg-transparent text-secondary-900 dark:text-white placeholder:text-secondary-400 dark:placeholder:text-secondary-500 transition-all duration-200"
+                  className="w-full px-6 py-4 pr-4 resize-none focus:outline-none bg-transparent text-secondary-900 dark:text-white placeholder:text-secondary-400 dark:placeholder:text-secondary-500 transition-all duration-200"
                   style={{ minHeight: '60px', maxHeight: '120px' }}
                   rows={1}
                   disabled={isStreaming}
@@ -262,24 +262,6 @@ const ChatInterface: React.FC = () => {
                     }
                   }}
                 />
-                <div className="absolute right-4 bottom-4 flex items-center space-x-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="p-2 h-8 w-8 text-secondary-400 hover:text-secondary-600 dark:hover:text-secondary-300"
-                  >
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="p-2 h-8 w-8 text-secondary-400 hover:text-secondary-600 dark:hover:text-secondary-300"
-                  >
-                    <Mic className="h-4 w-4" />
-                  </Button>
-                </div>
               </div>
               <div className="p-4">
                 <Button
