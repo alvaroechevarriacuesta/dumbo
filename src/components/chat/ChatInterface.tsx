@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import { Send, ChevronUp } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import Button from '../ui/Button';
 import WelcomeScreen from './WelcomeScreen';
