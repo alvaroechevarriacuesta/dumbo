@@ -458,7 +458,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
                 ) : (
                   <>
                     <p className="text-secondary-600 dark:text-secondary-400 mb-2">
-                      Drag and drop files here, or click to select
+                      Drag and drop PDF or TXT files here, or click to select
                     </p>
                     <Button
                       variant="outline"
