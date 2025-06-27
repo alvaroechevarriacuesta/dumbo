@@ -248,7 +248,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           },
         });
       }
-  };
+
       // Save the final response to the database
       await MessageService.updateMessage(assistantMessage.id, fullResponse);
 
@@ -267,6 +267,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } finally {
       dispatch({ type: 'STOP_STREAMING' });
     }
+  };
 
   const addContext = async (contextData: { name: string; description?: string }): Promise<void> => {
     if (!user) throw new Error('User not authenticated');
