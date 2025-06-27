@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, ChevronUp } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import { useChat } from '../../contexts/ChatContext';
 import Button from '../ui/Button';
 import WelcomeScreen from './WelcomeScreen';
+import RAGIndicator from './RAGIndicator';
 import 'highlight.js/styles/github-dark.css';
 
 const ChatInterface: React.FC = () => {
@@ -135,20 +135,9 @@ const ChatInterface: React.FC = () => {
                       </div>
                     ) : (
                       <div className="prose prose-lg max-w-none dark:prose-invert prose-headings:text-secondary-900 dark:prose-headings:text-secondary-100 prose-p:text-secondary-800 dark:prose-p:text-secondary-200 prose-p:leading-relaxed prose-p:mb-6 prose-strong:text-secondary-900 dark:prose-strong:text-secondary-100 prose-code:text-primary-600 dark:prose-code:text-primary-400 prose-pre:bg-secondary-100 dark:prose-pre:bg-secondary-800 prose-pre:border prose-pre:border-secondary-200 dark:prose-pre:border-secondary-700 prose-ul:mb-6 prose-ol:mb-6 prose-li:mb-2 prose-h1:mb-6 prose-h2:mb-6 prose-h3:mb-4 prose-h4:mb-4 prose-blockquote:mb-6">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          rehypePlugins={[rehypeHighlight]}
-                          components={{
-                            code: ({ node, inline, className, children, ...props }) => {
-                              if (inline) {
-                                return (
-                                  <code
-                                    className="px-2 py-1 rounded-md bg-secondary-100 dark:bg-secondary-800 text-primary-600 dark:text-primary-400 text-sm font-mono border border-secondary-200 dark:border-secondary-700"
-                                    {...props}
-                                  >
-                                    {children}
-                                  </code>
-                                );
+                        {/* RAG Context Indicator - Show for assistant messages with context */}
+                        {msg.sender === 'assistant' && ragContext && ragContext.hasRelevantContext && (
+                          <RAGIndicator ragContext={ragContext} className="mb-4" />
                               }
                               const match = /language-(\w+)/.exec(className || '');
                               const language = match ? match[1] : '';
