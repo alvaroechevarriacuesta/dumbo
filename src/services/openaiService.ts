@@ -1,6 +1,5 @@
 import OpenAI from 'openai';
 import { ChunkService } from './chunkService';
-import type { ChunkSearchResult } from './chunkService';
 
 interface OpenAIConfig {
   apiKey: string;
@@ -21,6 +20,8 @@ export class OpenAIService {
 
   async generateEmbedding(text: string): Promise<number[]> {
     try {
+      console.log(`OpenAIService: Generating embedding for text (${text.length} chars): "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"`);
+      
       const response = await this.client.embeddings.create({
         model: 'text-embedding-3-large',
         input: text,
@@ -29,14 +30,20 @@ export class OpenAIService {
 
       const embedding = response.data[0].embedding;
       
+      console.log(`OpenAIService: Received embedding from API with ${embedding.length} dimensions`);
+      console.log(`OpenAIService: Embedding first 5 values: [${embedding.slice(0, 5).join(', ')}]`);
+      console.log(`OpenAIService: Embedding last 5 values: [${embedding.slice(-5).join(', ')}]`);
+      
       // Double-check dimensions
       if (embedding.length !== 1536) {
+        console.error(`OpenAIService: API returned embedding with ${embedding.length} dimensions, expected 1536`);
         throw new Error(`OpenAI returned embedding with ${embedding.length} dimensions, expected 1536`);
       }
 
+      console.log(`OpenAIService: Embedding validation passed`);
       return embedding;
     } catch (error) {
-      console.error('OpenAI embedding error:', error);
+      console.error('OpenAIService: OpenAI embedding error:', error);
       throw new Error('Failed to generate embedding');
     }
   }
@@ -63,7 +70,7 @@ export class OpenAIService {
             console.log('RAG: Generated query embedding with dimensions:', queryEmbedding.length);
             
             // Search for relevant chunks
-            const relevantChunks = await ChunkService.searchSimilarChunks(
+            const relevantChunks = await ChunkService.searchSimilarChunksForChat(
               contextId,
               queryEmbedding,
               5
@@ -103,7 +110,7 @@ Please answer based on the above context when relevant and cite your sources app
 
               console.log('RAG: Enhanced system prompt with', highQualityChunks.length, 'relevant chunks');
             } else {
-              console.log('RAG: No relevant chunks found above 70% threshold');
+              console.log('RAG: No relevant chunks found');
             }
           } catch (error) {
             console.error('RAG search failed, proceeding without context:', error);
@@ -155,7 +162,7 @@ Please answer based on the above context when relevant and cite your sources app
             console.log('RAG: Generated query embedding with dimensions:', queryEmbedding.length);
             
             // Search for relevant chunks
-            const relevantChunks = await ChunkService.searchSimilarChunks(
+            const relevantChunks = await ChunkService.searchSimilarChunksForChat(
               contextId,
               queryEmbedding,
               5
@@ -195,7 +202,7 @@ Please answer based on the above context when relevant and cite your sources app
 
               console.log('RAG: Enhanced system prompt with', highQualityChunks.length, 'relevant chunks');
             } else {
-              console.log('RAG: No relevant chunks found above 70% threshold');
+              console.log('RAG: No relevant chunks found');
             }
           } catch (error) {
             console.error('RAG search failed, proceeding without context:', error);
@@ -222,6 +229,14 @@ Please answer based on the above context when relevant and cite your sources app
 
 // Singleton instance
 let openaiService: OpenAIService | null = null;
+
+interface ImportMetaEnv {
+  readonly VITE_OPENAI_API_KEY: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
 
 export const getOpenAIService = (): OpenAIService => {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;

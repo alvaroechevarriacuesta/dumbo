@@ -2,7 +2,7 @@ import { getOpenAIService } from './openaiService';
 
 export interface TextChunk {
   content: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface EmbeddedChunk extends TextChunk {
@@ -66,6 +66,7 @@ export class EmbeddingService {
    * Generate embeddings for text chunks
    */
   static async generateEmbeddings(chunks: TextChunk[]): Promise<EmbeddedChunk[]> {
+    console.log(`EmbeddingService: Starting to generate embeddings for ${chunks.length} chunks`);
     const openaiService = getOpenAIService();
     const embeddedChunks: EmbeddedChunk[] = [];
     
@@ -73,22 +74,30 @@ export class EmbeddingService {
     const batchSize = 10;
     for (let i = 0; i < chunks.length; i += batchSize) {
       const batch = chunks.slice(i, i + batchSize);
+      console.log(`EmbeddingService: Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(chunks.length / batchSize)} with ${batch.length} chunks`);
       
-      const batchPromises = batch.map(async (chunk) => {
+      const batchPromises = batch.map(async (chunk, batchIndex) => {
         try {
+          console.log(`EmbeddingService: Generating embedding for chunk ${i + batchIndex + 1}/${chunks.length} (${chunk.content.length} chars)`);
+          
           const embedding = await openaiService.generateEmbedding(chunk.content);
           
-          // Validate embedding dimensions
-          if (!this.validateEmbeddingDimensions(embedding, 1536)) {
-            throw new Error(`Invalid embedding dimensions: expected 1536, got ${embedding.length}`);
+          console.log(`EmbeddingService: Received embedding with ${embedding.length} dimensions for chunk ${i + batchIndex + 1}`);
+          
+          // Validate embedding dimensions and quality
+          if (!this.validateEmbeddingQuality(embedding)) {
+            console.error(`EmbeddingService: Invalid embedding quality for chunk ${i + batchIndex + 1}: expected 1536 dimensions, got ${embedding.length}`);
+            throw new Error(`Invalid embedding quality: expected 1536 dimensions, got ${embedding.length}`);
           }
+          
+          console.log(`EmbeddingService: Successfully validated embedding for chunk ${i + batchIndex + 1}`);
           
           return {
             ...chunk,
             embedding,
           };
         } catch (error) {
-          console.error(`Failed to generate embedding for chunk ${chunk.metadata?.chunkIndex}:`, error);
+          console.error(`EmbeddingService: Failed to generate embedding for chunk ${i + batchIndex + 1}:`, error);
           throw error;
         }
       });
@@ -96,19 +105,54 @@ export class EmbeddingService {
       const batchResults = await Promise.all(batchPromises);
       embeddedChunks.push(...batchResults);
       
+      console.log(`EmbeddingService: Completed batch ${Math.floor(i / batchSize) + 1}, total processed: ${embeddedChunks.length}`);
+      
       // Small delay between batches to respect rate limits
       if (i + batchSize < chunks.length) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
     
+    console.log(`EmbeddingService: Successfully generated embeddings for all ${embeddedChunks.length} chunks`);
     return embeddedChunks;
+  }
+
+  /**
+   * Validate embedding quality (dimensions and data integrity)
+   */
+  static validateEmbeddingQuality(embedding: number[]): boolean {
+    // Check if embedding exists and is an array
+    if (!embedding || !Array.isArray(embedding)) {
+      return false;
+    }
+
+    // Check if dimensions are correct (1536 for text-embedding-3-large)
+    if (embedding.length !== 1536) {
+      return false;
+    }
+
+    // Check if all values are numbers and within reasonable range
+    // Embeddings should be floating point numbers, typically between -1 and 1
+    for (const value of embedding) {
+      if (typeof value !== 'number' || !isFinite(value)) {
+        return false;
+      }
+      
+      // Check for unreasonably large values that might indicate corruption
+      if (Math.abs(value) > 10) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   /**
    * Process text file content into chunks and embeddings
    */
-  static async processTextContent(content: string, metadata: Record<string, any> = {}): Promise<EmbeddedChunk[]> {
+  static async processTextContent(content: string, metadata: Record<string, unknown> = {}): Promise<EmbeddedChunk[]> {
+    console.log(`EmbeddingService: Starting to process text content (${content.length} characters)`);
+    
     // Clean and normalize the text
     const cleanedContent = content
       .replace(/\r\n/g, '\n')
@@ -116,12 +160,20 @@ export class EmbeddingService {
       .replace(/\n{3,}/g, '\n\n')
       .trim();
     
+    console.log(`EmbeddingService: Cleaned content length: ${cleanedContent.length} characters`);
+    
     if (cleanedContent.length === 0) {
       throw new Error('No text content found to process');
     }
     
     // Split into chunks
     const chunks = this.chunkText(cleanedContent);
+    console.log(`EmbeddingService: Split content into ${chunks.length} chunks`);
+    
+    // Log chunk details
+    chunks.forEach((chunk, index) => {
+      console.log(`EmbeddingService: Chunk ${index + 1}: ${chunk.content.length} chars, ${chunk.content.split(/\s+/).length} words`);
+    });
     
     // Add file metadata to each chunk
     const chunksWithMetadata = chunks.map(chunk => ({
@@ -132,9 +184,12 @@ export class EmbeddingService {
       }
     }));
     
+    console.log(`EmbeddingService: Added metadata to chunks, starting embedding generation...`);
+    
     // Generate embeddings
     const embeddedChunks = await this.generateEmbeddings(chunksWithMetadata);
     
+    console.log(`EmbeddingService: Successfully processed text content into ${embeddedChunks.length} embedded chunks`);
     return embeddedChunks;
   }
 

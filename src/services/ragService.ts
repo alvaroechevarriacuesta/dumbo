@@ -39,7 +39,7 @@ export class RAGService {
       }
       
       // Search for relevant chunks
-      const relevantChunks = await ChunkService.searchSimilarChunks(
+      const relevantChunks = await ChunkService.searchSimilarChunksForChat(
         contextId,
         queryEmbedding,
         this.MAX_CONTEXT_CHUNKS * 2 // Get more chunks to filter by relevance
@@ -60,7 +60,7 @@ export class RAGService {
       // Build context information
       const ragContext: RAGContext = {
         chunks: selectedChunks,
-        totalRelevantChunks: highQualityChunks.length,
+        totalRelevantChunks: relevantChunks.length,
         averageSimilarity: selectedChunks.length > 0 
           ? selectedChunks.reduce((sum, chunk) => sum + chunk.similarity, 0) / selectedChunks.length
           : 0,
@@ -123,32 +123,24 @@ export class RAGService {
       }
       
       // Search for relevant chunks
-      const relevantChunks = await ChunkService.searchSimilarChunks(
+      const relevantChunks = await ChunkService.searchSimilarChunksForChat(
         contextId,
         queryEmbedding,
         this.MAX_CONTEXT_CHUNKS * 2
       );
 
-      // Filter and select optimal chunks
+      // Filter chunks by similarity threshold
       const highQualityChunks = relevantChunks.filter(
         chunk => chunk.similarity >= this.SIMILARITY_THRESHOLD
       );
-      
+
+      // Take the top chunks within context length limit
       const selectedChunks = this.selectOptimalChunks(
         highQualityChunks.slice(0, this.MAX_CONTEXT_CHUNKS)
       );
 
       const hasRelevantContext = selectedChunks.length > 0;
       
-      // Build context information
-      const ragContext: RAGContext = {
-        chunks: selectedChunks,
-        totalRelevantChunks: highQualityChunks.length,
-        averageSimilarity: selectedChunks.length > 0 
-          ? selectedChunks.reduce((sum, chunk) => sum + chunk.similarity, 0) / selectedChunks.length
-          : 0,
-      };
-
       // Stream response with context
       for await (const chunk of this.streamContextualResponse(
         query,
@@ -305,19 +297,19 @@ Note: No relevant context was found in the uploaded documents for this query. Pr
       const openaiService = getOpenAIService();
       const queryEmbedding = await openaiService.generateEmbedding(query);
       
-      const relevantChunks = await ChunkService.searchSimilarChunks(
+      const relevantChunks = await ChunkService.searchSimilarChunksForChat(
         contextId,
         queryEmbedding,
         10
       );
 
       const highQualityChunks = relevantChunks.filter(
-        chunk => chunk.similarity >= this.SIMILARITY_THRESHOLD
+        (chunk: ChunkSearchResult) => chunk.similarity >= this.SIMILARITY_THRESHOLD
       );
 
       const sources = Array.from(new Set(
         highQualityChunks
-          .map(chunk => chunk.chunk.metadata?.fileName)
+          .map((chunk: ChunkSearchResult) => chunk.chunk.metadata?.fileName)
           .filter(Boolean)
       )) as string[];
 
@@ -326,7 +318,7 @@ Note: No relevant context was found in the uploaded documents for this query. Pr
         relevantChunks: highQualityChunks.length,
         sources,
         averageSimilarity: highQualityChunks.length > 0
-          ? highQualityChunks.reduce((sum, chunk) => sum + chunk.similarity, 0) / highQualityChunks.length
+          ? highQualityChunks.reduce((sum: number, chunk: ChunkSearchResult) => sum + chunk.similarity, 0) / highQualityChunks.length
           : 0,
       };
     } catch (error) {

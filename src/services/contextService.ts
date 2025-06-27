@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase';
-import toast from 'react-hot-toast';
 import { PDFService } from './pdfService';
 import { EmbeddingService } from './embeddingService';
 import { ChunkService } from './chunkService';
@@ -245,6 +244,8 @@ export class ContextService {
   }
 
   static async processFileContent(file: File, fileId: string): Promise<void> {
+    console.log(`ContextService: Starting to process file: ${file.name} (${file.size} bytes, type: ${file.type})`);
+    
     try {
       // First, get the context ID for this file to clean up any existing invalid chunks
       const { data: fileData, error: fileError } = await supabase
@@ -257,28 +258,34 @@ export class ContextService {
         throw new Error(`Failed to get file context: ${fileError.message}`);
       }
 
+      console.log(`ContextService: File belongs to context: ${fileData.context_id}`);
+
       // Clean up any existing invalid chunks in this context
       try {
         const deletedCount = await ChunkService.cleanupInvalidChunks(fileData.context_id);
         if (deletedCount > 0) {
-          console.log(`Cleaned up ${deletedCount} invalid chunks before processing new file`);
+          console.log(`ContextService: Cleaned up ${deletedCount} invalid chunks before processing new file`);
         }
       } catch (cleanupError) {
-        console.warn('Failed to cleanup invalid chunks, continuing with file processing:', cleanupError);
+        console.warn('ContextService: Failed to cleanup invalid chunks, continuing with file processing:', cleanupError);
       }
 
       let textContent: string;
       
       // Extract text based on file type
-     if (file.type === 'application/pdf') {
-       textContent = await PDFService.extractTextFromPDF(file);
+      console.log(`ContextService: Extracting text from file...`);
+      if (file.type === 'application/pdf') {
+        textContent = await PDFService.extractTextFromPDF(file);
+        console.log(`ContextService: Extracted ${textContent.length} characters from PDF`);
       } else if (file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt')) {
         textContent = await file.text();
+        console.log(`ContextService: Extracted ${textContent.length} characters from text file`);
       } else {
         throw new Error('Unsupported file type');
       }
 
       // Update file with extracted content
+      console.log(`ContextService: Updating file record with extracted content...`);
       const { error: updateError } = await supabase
         .from('files')
         .update({ 
@@ -292,6 +299,7 @@ export class ContextService {
       }
 
       // Process content into chunks and embeddings
+      console.log(`ContextService: Processing content into chunks and embeddings...`);
       const metadata = {
         fileId,
         fileName: file.name,
@@ -300,11 +308,14 @@ export class ContextService {
       };
 
       const embeddedChunks = await EmbeddingService.processTextContent(textContent, metadata);
+      console.log(`ContextService: Generated ${embeddedChunks.length} embedded chunks`);
       
       // Save chunks to database
+      console.log(`ContextService: Saving chunks to database...`);
       await ChunkService.saveChunks(embeddedChunks, fileId);
 
       // Mark file as completed
+      console.log(`ContextService: Marking file as completed...`);
       const { error: completeError } = await supabase
         .from('files')
         .update({ processing_status: 'completed' })
@@ -314,8 +325,10 @@ export class ContextService {
         throw new Error(`Failed to mark file as completed: ${completeError.message}`);
       }
 
+      console.log(`ContextService: Successfully processed file: ${file.name}`);
+
     } catch (error) {
-      console.error('File processing error:', error);
+      console.error('ContextService: File processing error:', error);
       
       // Mark file as failed and store error
       const errorMessage = error instanceof Error ? error.message : 'Unknown processing error';

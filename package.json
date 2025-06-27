@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cleanup-chunks": "tsx scripts/cleanup-chunks.ts",
+    "test-embedding": "tsx scripts/test-embedding.ts",
+    "fix-database": "tsx scripts/fix-database.ts"
   },
   "dependencies": {
     "react": "^19.1.0",
@@ -39,6 +42,7 @@
     "globals": "^16.2.0",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
+    "tsx": "^4.7.0",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.34.1",
     "vite": "^5.4.2"
