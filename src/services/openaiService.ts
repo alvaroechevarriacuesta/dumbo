@@ -24,7 +24,7 @@ export class OpenAIService {
       const response = await this.client.embeddings.create({
         model: 'text-embedding-3-large',
         input: text,
-        dimensions: 1536, // Explicitly set to 1536 dimensions
+        dimensions: 1536, // Explicitly set to 1536 dimensions to match database
       });
 
       return response.data[0].embedding;
@@ -49,8 +49,11 @@ export class OpenAIService {
         const lastUserMessage = messages[messages.length - 1];
         if (lastUserMessage.role === 'user') {
           try {
+            console.log('RAG: Starting vector search for query:', lastUserMessage.content.substring(0, 100) + '...');
+            
             // Generate embedding for the user's query
             const queryEmbedding = await this.generateEmbedding(lastUserMessage.content);
+            console.log('RAG: Generated query embedding with dimensions:', queryEmbedding.length);
             
             // Search for relevant chunks
             const relevantChunks = await ChunkService.searchSimilarChunks(
@@ -59,10 +62,14 @@ export class OpenAIService {
               5
             );
 
+            console.log('RAG: Found', relevantChunks.length, 'chunks');
+
             // Filter chunks by similarity threshold (70% relevance)
             const highQualityChunks = relevantChunks.filter(
               chunk => chunk.similarity >= 0.7
             );
+
+            console.log('RAG: Filtered to', highQualityChunks.length, 'high-quality chunks');
 
             if (highQualityChunks.length > 0) {
               const contextInfo = highQualityChunks
@@ -87,9 +94,9 @@ ${contextInfo}
 Please answer based on the above context when relevant and cite your sources appropriately.`
               };
 
-              console.log(`RAG: Found ${highQualityChunks.length} relevant chunks for query`);
+              console.log('RAG: Enhanced system prompt with', highQualityChunks.length, 'relevant chunks');
             } else {
-              console.log('RAG: No relevant chunks found above threshold');
+              console.log('RAG: No relevant chunks found above 70% threshold');
             }
           } catch (error) {
             console.error('RAG search failed, proceeding without context:', error);
@@ -134,8 +141,11 @@ Please answer based on the above context when relevant and cite your sources app
         const lastUserMessage = messages[messages.length - 1];
         if (lastUserMessage.role === 'user') {
           try {
+            console.log('RAG: Starting vector search for query:', lastUserMessage.content.substring(0, 100) + '...');
+            
             // Generate embedding for the user's query
             const queryEmbedding = await this.generateEmbedding(lastUserMessage.content);
+            console.log('RAG: Generated query embedding with dimensions:', queryEmbedding.length);
             
             // Search for relevant chunks
             const relevantChunks = await ChunkService.searchSimilarChunks(
@@ -144,10 +154,14 @@ Please answer based on the above context when relevant and cite your sources app
               5
             );
 
+            console.log('RAG: Found', relevantChunks.length, 'chunks');
+
             // Filter chunks by similarity threshold (70% relevance)
             const highQualityChunks = relevantChunks.filter(
               chunk => chunk.similarity >= 0.7
             );
+
+            console.log('RAG: Filtered to', highQualityChunks.length, 'high-quality chunks');
 
             if (highQualityChunks.length > 0) {
               const contextInfo = highQualityChunks
@@ -172,9 +186,9 @@ ${contextInfo}
 Please answer based on the above context when relevant and cite your sources appropriately.`
               };
 
-              console.log(`RAG: Found ${highQualityChunks.length} relevant chunks for query`);
+              console.log('RAG: Enhanced system prompt with', highQualityChunks.length, 'relevant chunks');
             } else {
-              console.log('RAG: No relevant chunks found above threshold');
+              console.log('RAG: No relevant chunks found above 70% threshold');
             }
           } catch (error) {
             console.error('RAG search failed, proceeding without context:', error);
@@ -202,7 +216,7 @@ Please answer based on the above context when relevant and cite your sources app
 // Singleton instance
 let openaiService: OpenAIService | null = null;
 
-export const getOpenAIService = (): OpenAI => {
+export const getOpenAIService = (): OpenAIService => {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
   
   if (!apiKey) {

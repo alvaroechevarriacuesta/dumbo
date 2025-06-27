@@ -82,6 +82,9 @@ export class ChunkService {
     queryEmbedding: number[],
     limit: number = 5
   ): Promise<ChunkSearchResult[]> {
+    console.log('ChunkService: Searching for chunks in context:', contextId);
+    console.log('ChunkService: Query embedding dimensions:', queryEmbedding.length);
+    
     // Get all chunks for files and sites in this context
     const { data: fileChunks, error: fileError } = await supabase
       .from('chunks')
@@ -101,6 +104,9 @@ export class ChunkService {
       .eq('sites.context_id', contextId)
       .not('site_id', 'is', null);
 
+    console.log('ChunkService: File chunks found:', fileChunks?.length || 0);
+    console.log('ChunkService: Site chunks found:', siteChunks?.length || 0);
+
     if (fileError && siteError) {
       throw new Error(`Failed to search chunks: ${fileError.message || siteError.message}`);
     }
@@ -108,6 +114,7 @@ export class ChunkService {
     const chunks = [...(fileChunks || []), ...(siteChunks || [])];
 
     if (!chunks || chunks.length === 0) {
+      console.log('ChunkService: No chunks found for context');
       return [];
     }
 
@@ -117,7 +124,7 @@ export class ChunkService {
     for (const chunk of chunks) {
       // Validate embedding dimensions
       if (!EmbeddingService.validateEmbeddingDimensions(chunk.embedding, queryEmbedding.length)) {
-        console.warn(`Skipping chunk ${chunk.id} due to dimension mismatch: expected ${queryEmbedding.length}, got ${chunk.embedding?.length || 'undefined'}`);
+        console.warn(`ChunkService: Skipping chunk ${chunk.id} due to dimension mismatch: expected ${queryEmbedding.length}, got ${chunk.embedding?.length || 'undefined'}`);
         continue;
       }
       
@@ -140,15 +147,24 @@ export class ChunkService {
           similarity,
         });
       } catch (error) {
-        console.warn(`Error calculating similarity for chunk ${chunk.id}:`, error);
+        console.warn(`ChunkService: Error calculating similarity for chunk ${chunk.id}:`, error);
         continue;
       }
     }
 
+    console.log('ChunkService: Valid results found:', validResults.length);
+    
     // Sort by similarity (highest first) and return top results
-    return validResults
+    const topResults = validResults
       .sort((a, b) => b.similarity - a.similarity)
       .slice(0, limit);
+      
+    console.log('ChunkService: Returning top', topResults.length, 'results');
+    if (topResults.length > 0) {
+      console.log('ChunkService: Best similarity score:', (topResults[0].similarity * 100).toFixed(1) + '%');
+    }
+    
+    return topResults;
   }
 
   /**
