@@ -35,13 +35,48 @@ export class ContextService {
   }
 
   static async deleteContext(contextId: string): Promise<void> {
-    const { error } = await supabase
-      .from('contexts')
-      .delete()
-      .eq('id', contextId);
+    try {
+      // First, get all files associated with this context
+      const { data: files, error: filesError } = await supabase
+        .from('files')
+        .select('path')
+        .eq('context_id', contextId);
 
-    if (error) {
-      throw new Error(`Failed to delete context: ${error.message}`);
+      if (filesError) {
+        console.error('Failed to fetch files for context deletion:', filesError);
+        // Continue with context deletion even if we can't fetch files
+      }
+
+      // Delete files from storage if any exist
+      if (files && files.length > 0) {
+        const filePaths = files
+          .filter(file => file.path) // Only include files that have a storage path
+          .map(file => file.path!);
+
+        if (filePaths.length > 0) {
+          const { error: storageError } = await supabase.storage
+            .from('files')
+            .remove(filePaths);
+
+          if (storageError) {
+            console.error('Failed to delete files from storage:', storageError);
+            // Continue with context deletion even if storage cleanup fails
+          }
+        }
+      }
+
+      // Delete the context (this will cascade delete files, sites, etc. from database)
+      const { error: deleteError } = await supabase
+        .from('contexts')
+        .delete()
+        .eq('id', contextId);
+
+      if (deleteError) {
+        throw new Error(`Failed to delete context: ${deleteError.message}`);
+      }
+    } catch (error) {
+      console.error('Error deleting context:', error);
+      throw error;
     }
   }
 
