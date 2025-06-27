@@ -32,16 +32,22 @@ const ChatInterface: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Scroll to bottom when context changes or messages are first loaded
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (activeContextId && hasMessages) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    }
+  }, [activeContextId, hasMessages]);
 
   // Auto-scroll when streaming
   useEffect(() => {
     if (isStreaming) {
       scrollToBottom();
     }
-  }, [isStreaming, messages]);
+  }, [isStreaming, messages.length]);
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
     if (textarea) {

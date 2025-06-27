@@ -210,9 +210,13 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const loadMessages = async (contextId: string): Promise<void> => {
     try {
-      const { messages, hasMore } = await MessageService.getContextMessages(contextId, 10, 0);
+      // Load the latest 10 messages for initial view
+      const { messages, totalCount } = await MessageService.getLatestMessages(contextId, 10);
+      const hasMore = totalCount > 10;
+      const offset = Math.max(0, totalCount - 10);
+      
       dispatch({ type: 'SET_MESSAGES', payload: { contextId, messages } });
-      dispatch({ type: 'SET_PAGINATION', payload: { contextId, hasMore, offset: messages.length } });
+      dispatch({ type: 'SET_PAGINATION', payload: { contextId, hasMore, offset } });
     } catch (error) {
       console.error('Failed to load messages:', error);
       toast.error('Failed to load chat history');
@@ -226,10 +230,14 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     dispatch({ type: 'SET_LOADING_MORE', payload: true });
 
     try {
+      // Load older messages (before the current offset)
+      const newOffset = Math.max(0, pagination.offset - 10);
+      const limit = pagination.offset - newOffset;
+      
       const { messages, hasMore } = await MessageService.getContextMessages(
         contextId, 
-        10, 
-        pagination.offset
+        limit,
+        newOffset
       );
       
       dispatch({ type: 'PREPEND_MESSAGES', payload: { contextId, messages } });
@@ -237,8 +245,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         type: 'SET_PAGINATION', 
         payload: { 
           contextId, 
-          hasMore, 
-          offset: pagination.offset + messages.length 
+          hasMore: newOffset > 0,
+          offset: newOffset
         } 
       });
     } catch (error) {
