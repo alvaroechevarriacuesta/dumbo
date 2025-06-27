@@ -20,8 +20,6 @@ export class OpenAIService {
 
   async generateEmbedding(text: string): Promise<number[]> {
     try {
-      console.log(`OpenAIService: Generating embedding for text (${text.length} chars): "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"`);
-      
       const response = await this.client.embeddings.create({
         model: 'text-embedding-3-large',
         input: text,
@@ -30,20 +28,13 @@ export class OpenAIService {
 
       const embedding = response.data[0].embedding;
       
-      console.log(`OpenAIService: Received embedding from API with ${embedding.length} dimensions`);
-      console.log(`OpenAIService: Embedding first 5 values: [${embedding.slice(0, 5).join(', ')}]`);
-      console.log(`OpenAIService: Embedding last 5 values: [${embedding.slice(-5).join(', ')}]`);
-      
       // Double-check dimensions
       if (embedding.length !== 1536) {
-        console.error(`OpenAIService: API returned embedding with ${embedding.length} dimensions, expected 1536`);
         throw new Error(`OpenAI returned embedding with ${embedding.length} dimensions, expected 1536`);
       }
 
-      console.log(`OpenAIService: Embedding validation passed`);
       return embedding;
     } catch (error) {
-      console.error('OpenAIService: OpenAI embedding error:', error);
       throw new Error('Failed to generate embedding');
     }
   }
