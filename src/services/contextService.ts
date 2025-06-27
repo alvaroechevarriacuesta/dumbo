@@ -245,6 +245,12 @@ export class ContextService {
 
   static async processFileContent(file: File, fileId: string): Promise<void> {
     try {
+      // Update processing status to 'processing'
+      await supabase
+        .from('files')
+        .update({ processing_status: 'processing' })
+        .eq('id', fileId);
+
       let textContent: string;
       
       // Extract text based on file type
@@ -292,6 +298,10 @@ export class ContextService {
         throw new Error(`Failed to mark file as completed: ${completeError.message}`);
       }
 
+      // Import toast dynamically to avoid circular dependencies
+      const { default: toast } = await import('react-hot-toast');
+      toast.success(`File "${file.name}" processed successfully! ${embeddedChunks.length} chunks created.`);
+
     } catch (error) {
       // Mark file as failed and store error
       const errorMessage = error instanceof Error ? error.message : 'Unknown processing error';
@@ -303,6 +313,10 @@ export class ContextService {
           processing_error: errorMessage
         })
         .eq('id', fileId);
+
+      // Import toast dynamically to avoid circular dependencies
+      const { default: toast } = await import('react-hot-toast');
+      toast.error(`Failed to process file "${file.name}": ${errorMessage}`);
 
       throw error;
     }

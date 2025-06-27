@@ -30,6 +30,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(contextName);
+  const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { deleteContext, refreshContexts } = useChat();
 
@@ -40,8 +41,36 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
   useEffect(() => {
     if (isOpen && contextId) {
       loadContextData();
+      
+      // Set up polling to refresh file status every 2 seconds
+      const interval = setInterval(() => {
+        loadContextData();
+      }, 2000);
+      
+      setRefreshInterval(interval);
+      
+      return () => {
+        if (interval) {
+          clearInterval(interval);
+        }
+      };
     }
+    
+    return () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+        setRefreshInterval(null);
+      }
+    };
   }, [isOpen, contextId]);
+
+  // Clean up interval when modal closes
+  useEffect(() => {
+    if (!isOpen && refreshInterval) {
+      clearInterval(refreshInterval);
+      setRefreshInterval(null);
+    }
+  }, [isOpen, refreshInterval]);
 
   const loadContextData = async () => {
     setIsLoading(true);
