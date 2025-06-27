@@ -32,6 +32,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
   const [editedName, setEditedName] = useState(contextName);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { deleteContext, refreshContexts } = useChat();
+  const [isCleaningChunks, setIsCleaningChunks] = React.useState(false);
 
   useEffect(() => {
     setEditedName(contextName);
@@ -202,6 +203,29 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditedName(contextName);
+  };
+
+  const handleCleanupChunks = async () => {
+    if (!contextId || isCleaningChunks) return;
+    
+    setIsCleaningChunks(true);
+    try {
+      const { ChunkService } = await import('../../services/chunkService');
+      const deletedCount = await ChunkService.cleanupInvalidChunks(contextId);
+      
+      if (deletedCount > 0) {
+        toast.success(`Cleaned up ${deletedCount} invalid chunks`);
+        await loadContextData(); // Refresh the file list
+      } else {
+        toast.success('No invalid chunks found');
+      }
+    } catch (error) {
+      console.error('Failed to cleanup chunks:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to cleanup chunks';
+      toast.error(errorMessage);
+    } finally {
+      setIsCleaningChunks(false);
+    }
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -481,12 +505,22 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
 
               {/* Actions */}
               <div className="flex justify-between pt-4 border-t border-secondary-200 dark:border-secondary-700">
-                <Button
-                  variant="danger"
-                  onClick={() => setShowDeleteConfirm(true)}
-                >
-                  Delete Context
-                </Button>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleCleanupChunks}
+                    disabled={isCleaningChunks}
+                    size="sm"
+                  >
+                    {isCleaningChunks ? 'Cleaning...' : 'Cleanup Invalid Chunks'}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    Delete Context
+                  </Button>
+                </div>
                 <Button
                   onClick={onClose}
                   variant="outline"
