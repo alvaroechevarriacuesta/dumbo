@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { ContextService } from '../services/contextService';
+import { MessageService } from '../services/messageService';
+import { getOpenAIService } from '../services/openaiService';
+import toast from 'react-hot-toast';
 import type { Message, ChatContext as ChatContextType } from '../types/chat';
 import type { DatabaseContext } from '../types/database';
 
@@ -12,12 +15,13 @@ interface ChatSession {
 }
 
 interface ChatState {
-  sessions: Record<string, ChatSession>;
+  messages: Record<string, Message[]>; // contextId -> messages
   contexts: ChatContextType[];
   activeContextId: string | null;
   isStreaming: boolean;
   isLoading: boolean;
   error: string | null;
+  streamingMessageId: string | null;
 }
 
 interface ChatContextValue extends ChatState {
@@ -27,21 +31,23 @@ interface ChatContextValue extends ChatState {
   deleteContext: (contextId: string) => Promise<void>;
   getCurrentMessages: () => Message[];
   refreshContexts: () => Promise<void>;
+  loadMessages: (contextId: string) => Promise<void>;
 }
 
 const ChatContext = createContext<ChatContextValue | undefined>(undefined);
 
 type ChatAction =
   | { type: 'SELECT_CONTEXT'; payload: string }
+  | { type: 'SET_MESSAGES'; payload: { contextId: string; messages: Message[] } }
   | { type: 'ADD_MESSAGE'; payload: { contextId: string; message: Message } }
+  | { type: 'UPDATE_MESSAGE'; payload: { contextId: string; messageId: string; content: string } }
   | { type: 'SET_CONTEXTS'; payload: ChatContextType[] }
   | { type: 'ADD_CONTEXT'; payload: ChatContextType }
   | { type: 'REMOVE_CONTEXT'; payload: string }
-  | { type: 'START_STREAMING' }
+  | { type: 'START_STREAMING'; payload: string }
   | { type: 'STOP_STREAMING' }
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'LOAD_SESSIONS'; payload: Record<string, ChatSession> };
+  | { type: 'SET_ERROR'; payload: string | null };
 
 const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
   switch (action.type) {
@@ -50,21 +56,34 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
         ...state,
         activeContextId: action.payload,
       };
-    case 'ADD_MESSAGE':
-      const { contextId, message } = action.payload;
-      const sessionId = contextId;
-      const existingSession = state.sessions[sessionId];
-      
+    case 'SET_MESSAGES':
       return {
         ...state,
-        sessions: {
-          ...state.sessions,
-          [sessionId]: {
-            id: sessionId,
-            contextId,
-            messages: existingSession ? [...existingSession.messages, message] : [message],
-            lastActivity: new Date(),
-          },
+        messages: {
+          ...state.messages,
+          [action.payload.contextId]: action.payload.messages,
+        },
+      };
+    case 'ADD_MESSAGE':
+      const { contextId, message } = action.payload;
+      const existingMessages = state.messages[contextId] || [];
+      return {
+        ...state,
+        messages: {
+          ...state.messages,
+          [contextId]: [...existingMessages, message],
+        },
+      };
+    case 'UPDATE_MESSAGE':
+      const { messageId, content } = action.payload;
+      const contextMessages = state.messages[action.payload.contextId] || [];
+      return {
+        ...state,
+        messages: {
+          ...state.messages,
+          [action.payload.contextId]: contextMessages.map(msg =>
+            msg.id === messageId ? { ...msg, content } : msg
+          ),
         },
       };
     case 'SET_CONTEXTS':
@@ -80,33 +99,34 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
     case 'REMOVE_CONTEXT':
       const filteredContexts = state.contexts.filter(ctx => ctx.id !== action.payload);
       const newActiveId = state.activeContextId === action.payload ? null : state.activeContextId;
+      const { [action.payload]: removedMessages, ...remainingMessages } = state.messages;
       return {
         ...state,
         contexts: filteredContexts,
         activeContextId: newActiveId,
+        messages: remainingMessages,
       };
     case 'START_STREAMING':
-      return { ...state, isStreaming: true };
+      return { ...state, isStreaming: true, streamingMessageId: action.payload };
     case 'STOP_STREAMING':
-      return { ...state, isStreaming: false };
+      return { ...state, isStreaming: false, streamingMessageId: null };
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
     case 'SET_ERROR':
       return { ...state, error: action.payload };
-    case 'LOAD_SESSIONS':
-      return { ...state, sessions: action.payload };
     default:
       return state;
   }
 };
 
 const initialState: ChatState = {
-  sessions: {},
+  messages: {},
   contexts: [],
   activeContextId: null,
   isStreaming: false,
   isLoading: false,
   error: null,
+  streamingMessageId: null,
 };
 
 export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -128,31 +148,12 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [isAuthenticated, user]);
 
-  // Load sessions from localStorage on mount
+  // Load messages when context is selected
   useEffect(() => {
-    const stored = localStorage.getItem('chatSessions');
-    
-    if (stored) {
-      try {
-        const sessions = JSON.parse(stored);
-        // Convert date strings back to Date objects
-        Object.values(sessions).forEach((session: any) => {
-          session.lastActivity = new Date(session.lastActivity);
-          session.messages.forEach((message: any) => {
-            message.timestamp = new Date(message.timestamp);
-          });
-        });
-        dispatch({ type: 'LOAD_SESSIONS', payload: sessions });
-      } catch (error) {
-        console.error('Failed to load chat sessions:', error);
-      }
+    if (state.activeContextId && !state.messages[state.activeContextId]) {
+      loadMessages(state.activeContextId);
     }
-  }, []);
-
-  // Save sessions to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('chatSessions', JSON.stringify(state.sessions));
-  }, [state.sessions]);
+  }, [state.activeContextId]);
 
   const refreshContexts = async (): Promise<void> => {
     if (!user) return;
@@ -177,45 +178,76 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     dispatch({ type: 'SELECT_CONTEXT', payload: contextId });
   };
 
+  const loadMessages = async (contextId: string): Promise<void> => {
+    try {
+      const messages = await MessageService.getContextMessages(contextId);
+      dispatch({ type: 'SET_MESSAGES', payload: { contextId, messages } });
+    } catch (error) {
+      console.error('Failed to load messages:', error);
+      toast.error('Failed to load chat history');
+    }
+  };
   const sendMessage = async (content: string): Promise<void> => {
-    if (!state.activeContextId) return;
+    if (!state.activeContextId) {
+      toast.error('Please select a context first');
+      return;
+    }
 
-    // Add user message
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content,
-      timestamp: new Date(),
-      sender: 'user',
-      context: state.activeContextId,
-    };
+    try {
+      // Save user message to database
+      const userMessage = await MessageService.createMessage(
+        state.activeContextId,
+        'user',
+        content
+      );
 
-    dispatch({
-      type: 'ADD_MESSAGE',
-      payload: { contextId: state.activeContextId, message: userMessage },
-    });
+      dispatch({
+        type: 'ADD_MESSAGE',
+        payload: { contextId: state.activeContextId, message: userMessage },
+      });
 
-    // Simulate AI response with streaming
-    dispatch({ type: 'START_STREAMING' });
+      // Create initial assistant message
+      const assistantMessage = await MessageService.createMessage(
+        state.activeContextId,
+        'assistant',
+        ''
+      );
 
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+      dispatch({
+        type: 'ADD_MESSAGE',
+        payload: { contextId: state.activeContextId, message: assistantMessage },
+      });
 
-    const responseContent = `I'm ready to help you with this context. How can I assist you today?`;
+      // Start streaming
+      dispatch({ type: 'START_STREAMING', payload: assistantMessage.id });
 
-    const assistantMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      content: responseContent,
-      timestamp: new Date(),
-      sender: 'assistant',
-      context: state.activeContextId,
-    };
+      // Get conversation history for OpenAI
+      const contextMessages = state.messages[state.activeContextId] || [];
+      const conversationHistory = [
+        ...contextMessages.map(msg => ({
+          role: msg.sender === 'user' ? 'user' as const : 'assistant' as const,
+          content: msg.content,
+        })),
+        { role: 'user' as const, content },
+      ];
 
-    dispatch({
-      type: 'ADD_MESSAGE',
-      payload: { contextId: state.activeContextId, message: assistantMessage },
-    });
+      // Stream response from OpenAI
+      const openaiService = getOpenAIService();
+      let fullResponse = '';
 
-    dispatch({ type: 'STOP_STREAMING' });
+      for await (const chunk of openaiService.streamChatCompletion(conversationHistory)) {
+        fullResponse += chunk;
+        
+        // Update the message in real-time
+        dispatch({
+          type: 'UPDATE_MESSAGE',
+          payload: {
+            contextId: state.activeContextId,
+            messageId: assistantMessage.id,
+            content: fullResponse,
+          },
+        });
+      }
   };
 
   const addContext = async (contextData: { name: string; description?: string }): Promise<void> => {
@@ -248,8 +280,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const getCurrentMessages = (): Message[] => {
     if (!state.activeContextId) return [];
-    const session = state.sessions[state.activeContextId];
-    return session ? session.messages : [];
+    return state.messages[state.activeContextId] || [];
   };
 
   return (
@@ -262,6 +293,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         deleteContext,
         getCurrentMessages,
         refreshContexts,
+        loadMessages,
       }}
     >
       {children}

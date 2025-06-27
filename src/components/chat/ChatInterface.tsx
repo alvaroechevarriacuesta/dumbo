@@ -24,6 +24,12 @@ const ChatInterface: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Auto-scroll when streaming
+  useEffect(() => {
+    if (isStreaming) {
+      scrollToBottom();
+    }
+  }, [isStreaming, messages]);
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
     if (textarea) {
