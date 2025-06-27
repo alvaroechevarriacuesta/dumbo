@@ -1,4 +1,7 @@
-import pdfParse from 'pdf-parse';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Set up the worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js`;
 
 export class PDFService {
   /**
@@ -8,16 +11,30 @@ export class PDFService {
     try {
       // Convert File to ArrayBuffer
       const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
       
-      // Parse PDF
-      const data = await pdfParse(buffer);
+      // Load PDF document
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       
-      if (!data.text || data.text.trim().length === 0) {
+      let fullText = '';
+      
+      // Extract text from each page
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        
+        // Combine text items into a single string
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        
+        fullText += pageText + '\n';
+      }
+      
+      if (!fullText || fullText.trim().length === 0) {
         throw new Error('No text content found in PDF');
       }
       
-      return data.text;
+      return fullText.trim();
     } catch (error) {
       console.error('PDF parsing error:', error);
       if (error instanceof Error) {
@@ -40,13 +57,15 @@ export class PDFService {
   static async getMetadata(file: File): Promise<{ pages: number; title?: string; author?: string }> {
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const data = await pdfParse(buffer);
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      
+      // Get metadata
+      const metadata = await pdf.getMetadata();
       
       return {
-        pages: data.numpages,
-        title: data.info?.Title,
-        author: data.info?.Author,
+        pages: pdf.numPages,
+        title: metadata.info?.Title,
+        author: metadata.info?.Author,
       };
     } catch (error) {
       console.error('Failed to get PDF metadata:', error);
