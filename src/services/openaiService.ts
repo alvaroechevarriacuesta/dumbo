@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { ChunkService } from './chunkService';
 
 interface OpenAIConfig {
   apiKey: string;
@@ -17,15 +18,105 @@ export class OpenAIService {
     this.model = config.model || 'gpt-3.5-turbo';
   }
 
+  async generateEmbedding(text: string): Promise<number[]> {
+    try {
+      console.log(`OpenAIService: Generating embedding for text (${text.length} chars): "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"`);
+      
+      const response = await this.client.embeddings.create({
+        model: 'text-embedding-3-large',
+        input: text,
+        dimensions: 1536, // Force 1536 dimensions to match stored chunks
+      });
+
+      const embedding = response.data[0].embedding;
+      
+      console.log(`OpenAIService: Received embedding from API with ${embedding.length} dimensions`);
+      console.log(`OpenAIService: Embedding first 5 values: [${embedding.slice(0, 5).join(', ')}]`);
+      console.log(`OpenAIService: Embedding last 5 values: [${embedding.slice(-5).join(', ')}]`);
+      
+      // Double-check dimensions
+      if (embedding.length !== 1536) {
+        console.error(`OpenAIService: API returned embedding with ${embedding.length} dimensions, expected 1536`);
+        throw new Error(`OpenAI returned embedding with ${embedding.length} dimensions, expected 1536`);
+      }
+
+      console.log(`OpenAIService: Embedding validation passed`);
+      return embedding;
+    } catch (error) {
+      console.error('OpenAIService: OpenAI embedding error:', error);
+      throw new Error('Failed to generate embedding');
+    }
+  }
+
   async *streamChatCompletion(
-    messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>
+    messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
+    contextId?: string
   ): AsyncGenerator<string, void, unknown> {
     try {
-      // Add system prompt at the beginning
-      const systemPrompt = {
+      let systemPrompt = {
         role: 'system' as const,
-        content: 'Go into as much detail as possible. Provide comprehensive, thorough responses with examples, explanations, and actionable insights. Use markdown formatting to structure your responses clearly with headers, lists, code blocks, and other formatting as appropriate.'
+        content: 'You are a helpful AI assistant. Go into as much detail as possible. Provide comprehensive, thorough responses with examples, explanations, and actionable insights. Use markdown formatting to structure your responses clearly with headers, lists, code blocks, and other formatting as appropriate.'
       };
+
+      // If we have a context, perform RAG
+      if (contextId && messages.length > 0) {
+        const lastUserMessage = messages[messages.length - 1];
+        if (lastUserMessage.role === 'user') {
+          try {
+            console.log('RAG: Starting vector search for query:', lastUserMessage.content.substring(0, 100) + '...');
+            
+            // Generate embedding for the user's query
+            const queryEmbedding = await this.generateEmbedding(lastUserMessage.content);
+            console.log('RAG: Generated query embedding with dimensions:', queryEmbedding.length);
+            
+            // Search for relevant chunks
+            const relevantChunks = await ChunkService.searchSimilarChunksForChat(
+              contextId,
+              queryEmbedding,
+              5
+            );
+
+            console.log('RAG: Found', relevantChunks.length, 'chunks');
+
+            // Filter chunks by similarity threshold (70% relevance)
+            const highQualityChunks = relevantChunks.filter(
+              chunk => chunk.similarity >= 0.7
+            );
+
+            console.log('RAG: Filtered to', highQualityChunks.length, 'high-quality chunks');
+
+            if (highQualityChunks.length > 0) {
+              const contextInfo = highQualityChunks
+                .map((result, index) => {
+                  const relevancePercentage = (result.similarity * 100).toFixed(1);
+                  const source = result.chunk.metadata?.fileName || 'Unknown source';
+                  
+                  return `**[Source ${index + 1}: ${source}]** (Relevance: ${relevancePercentage}%)
+${result.chunk.content}`;
+                })
+                .join('\n\n---\n\n');
+
+              systemPrompt = {
+                role: 'system' as const,
+                content: `You are a helpful AI assistant. Use the provided context information to answer the user's question. If the context is relevant, base your answer primarily on the provided information and cite the sources. If the context doesn't contain relevant information, you can provide a general answer but mention that you don't have specific context about this topic.
+
+Go into as much detail as possible. Provide comprehensive, thorough responses with examples, explanations, and actionable insights. Use markdown formatting to structure your responses clearly with headers, lists, code blocks, and other formatting as appropriate.
+
+**CONTEXT INFORMATION:**
+${contextInfo}
+
+Please answer based on the above context when relevant and cite your sources appropriately.`
+              };
+
+              console.log('RAG: Enhanced system prompt with', highQualityChunks.length, 'relevant chunks');
+            } else {
+              console.log('RAG: No relevant chunks found');
+            }
+          } catch (error) {
+            console.error('RAG search failed, proceeding without context:', error);
+          }
+        }
+      }
 
       const messagesWithSystem = [systemPrompt, ...messages];
 
@@ -50,14 +141,74 @@ export class OpenAIService {
   }
 
   async getChatCompletion(
-    messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>
+    messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
+    contextId?: string
   ): Promise<string> {
     try {
-      // Add system prompt at the beginning
-      const systemPrompt = {
+      let systemPrompt = {
         role: 'system' as const,
-        content: 'Go into as much detail as possible. Provide comprehensive, thorough responses with examples, explanations, and actionable insights. Use markdown formatting to structure your responses clearly with headers, lists, code blocks, and other formatting as appropriate.'
+        content: 'You are a helpful AI assistant. Go into as much detail as possible. Provide comprehensive, thorough responses with examples, explanations, and actionable insights. Use markdown formatting to structure your responses clearly with headers, lists, code blocks, and other formatting as appropriate.'
       };
+
+      // If we have a context, perform RAG
+      if (contextId && messages.length > 0) {
+        const lastUserMessage = messages[messages.length - 1];
+        if (lastUserMessage.role === 'user') {
+          try {
+            console.log('RAG: Starting vector search for query:', lastUserMessage.content.substring(0, 100) + '...');
+            
+            // Generate embedding for the user's query
+            const queryEmbedding = await this.generateEmbedding(lastUserMessage.content);
+            console.log('RAG: Generated query embedding with dimensions:', queryEmbedding.length);
+            
+            // Search for relevant chunks
+            const relevantChunks = await ChunkService.searchSimilarChunksForChat(
+              contextId,
+              queryEmbedding,
+              5
+            );
+
+            console.log('RAG: Found', relevantChunks.length, 'chunks');
+
+            // Filter chunks by similarity threshold (70% relevance)
+            const highQualityChunks = relevantChunks.filter(
+              chunk => chunk.similarity >= 0.7
+            );
+
+            console.log('RAG: Filtered to', highQualityChunks.length, 'high-quality chunks');
+
+            if (highQualityChunks.length > 0) {
+              const contextInfo = highQualityChunks
+                .map((result, index) => {
+                  const relevancePercentage = (result.similarity * 100).toFixed(1);
+                  const source = result.chunk.metadata?.fileName || 'Unknown source';
+                  
+                  return `**[Source ${index + 1}: ${source}]** (Relevance: ${relevancePercentage}%)
+${result.chunk.content}`;
+                })
+                .join('\n\n---\n\n');
+
+              systemPrompt = {
+                role: 'system' as const,
+                content: `You are a helpful AI assistant. Use the provided context information to answer the user's question. If the context is relevant, base your answer primarily on the provided information and cite the sources. If the context doesn't contain relevant information, you can provide a general answer but mention that you don't have specific context about this topic.
+
+Go into as much detail as possible. Provide comprehensive, thorough responses with examples, explanations, and actionable insights. Use markdown formatting to structure your responses clearly with headers, lists, code blocks, and other formatting as appropriate.
+
+**CONTEXT INFORMATION:**
+${contextInfo}
+
+Please answer based on the above context when relevant and cite your sources appropriately.`
+              };
+
+              console.log('RAG: Enhanced system prompt with', highQualityChunks.length, 'relevant chunks');
+            } else {
+              console.log('RAG: No relevant chunks found');
+            }
+          } catch (error) {
+            console.error('RAG search failed, proceeding without context:', error);
+          }
+        }
+      }
 
       const messagesWithSystem = [systemPrompt, ...messages];
 
@@ -78,6 +229,14 @@ export class OpenAIService {
 
 // Singleton instance
 let openaiService: OpenAIService | null = null;
+
+interface ImportMetaEnv {
+  readonly VITE_OPENAI_API_KEY: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
 
 export const getOpenAIService = (): OpenAIService => {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;

@@ -300,11 +300,11 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         { role: 'user' as const, content },
       ];
 
-      // Stream response from OpenAI
+      // Stream response from OpenAI with RAG context
       const openaiService = getOpenAIService();
       let fullResponse = '';
 
-      for await (const chunk of openaiService.streamChatCompletion(conversationHistory)) {
+      for await (const chunk of openaiService.streamChatCompletion(conversationHistory, state.activeContextId)) {
         fullResponse += chunk;
         
         // Update the message in real-time

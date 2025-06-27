@@ -37,4 +37,7 @@ export interface CreateFileData {
   size: number;
   type: string;
   path?: string;
+  content?: string;
+  processing_status?: 'pending' | 'processing' | 'completed' | 'failed';
+  processing_error?: string;
 }

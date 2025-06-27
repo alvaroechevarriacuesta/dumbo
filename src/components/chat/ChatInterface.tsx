@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, ChevronUp } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import { Send, ChevronUp } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import Button from '../ui/Button';
 import WelcomeScreen from './WelcomeScreen';
@@ -48,6 +48,7 @@ const ChatInterface: React.FC = () => {
       scrollToBottom();
     }
   }, [isStreaming, messages.length]);
+
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
     if (textarea) {
@@ -139,17 +140,7 @@ const ChatInterface: React.FC = () => {
                           remarkPlugins={[remarkGfm]}
                           rehypePlugins={[rehypeHighlight]}
                           components={{
-                            code: ({ node, inline, className, children, ...props }) => {
-                              if (inline) {
-                                return (
-                                  <code
-                                    className="px-2 py-1 rounded-md bg-secondary-100 dark:bg-secondary-800 text-primary-600 dark:text-primary-400 text-sm font-mono border border-secondary-200 dark:border-secondary-700"
-                                    {...props}
-                                  >
-                                    {children}
-                                  </code>
-                                );
-                              }
+                            code: ({ className, children, ...props }) => {
                               const match = /language-(\w+)/.exec(className || '');
                               const language = match ? match[1] : '';
                               return (

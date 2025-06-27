@@ -32,6 +32,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
   const [editedName, setEditedName] = useState(contextName);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { deleteContext, refreshContexts } = useChat();
+  const [isCleaningChunks, setIsCleaningChunks] = React.useState(false);
 
   useEffect(() => {
     setEditedName(contextName);
@@ -79,16 +80,34 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
 
     for (const file of files) {
       try {
-        // Upload file to storage first
+        // Validate file type first
+        const allowedTypes = ['application/pdf', 'text/plain'];
+        const allowedExtensions = ['.pdf', '.txt'];
+        
+        const isValidType = allowedTypes.includes(file.type) || 
+                           allowedExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+        
+        if (!isValidType) {
+          throw new Error('Only PDF and TXT files are supported');
+        }
+
+        // Upload file to storage
         const filePath = await ContextService.uploadFile(file, contextId);
 
-        // Only create database record if upload was successful
-        await ContextService.createFile({
+        // Create database record
+        const dbFile = await ContextService.createFile({
           name: file.name,
           context_id: contextId,
           size: file.size,
           type: file.type,
           path: filePath,
+          processing_status: 'pending',
+        });
+
+        // Process file content in background
+        ContextService.processFileContent(file, dbFile.id).catch(error => {
+          console.error(`Background processing failed for ${file.name}:`, error);
+          toast.error(`Processing failed for ${file.name}: ${error.message}`);
         });
 
         successCount++;
@@ -184,6 +203,29 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditedName(contextName);
+  };
+
+  const handleCleanupChunks = async () => {
+    if (!contextId || isCleaningChunks) return;
+    
+    setIsCleaningChunks(true);
+    try {
+      const { ChunkService } = await import('../../services/chunkService');
+      const deletedCount = await ChunkService.cleanupInvalidChunks(contextId);
+      
+      if (deletedCount > 0) {
+        toast.success(`Cleaned up ${deletedCount} invalid chunks`);
+        await loadContextData(); // Refresh the file list
+      } else {
+        toast.success('No invalid chunks found');
+      }
+    } catch (error) {
+      console.error('Failed to cleanup chunks:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to cleanup chunks';
+      toast.error(errorMessage);
+    } finally {
+      setIsCleaningChunks(false);
+    }
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -309,6 +351,34 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
                             <p className="text-xs text-secondary-500">
                               {formatFileSize(file.size)} • {formatDate(file.created_at)}
                             </p>
+                            {file.processing_status && (
+                              <div className="flex items-center mt-1">
+                                {file.processing_status === 'pending' && (
+                                  <span className="text-xs text-warning-600 dark:text-warning-400 flex items-center">
+                                    <div className="w-2 h-2 bg-warning-500 rounded-full mr-1 animate-pulse"></div>
+                                    Processing...
+                                  </span>
+                                )}
+                                {file.processing_status === 'processing' && (
+                                  <span className="text-xs text-primary-600 dark:text-primary-400 flex items-center">
+                                    <div className="w-2 h-2 bg-primary-500 rounded-full mr-1 animate-pulse"></div>
+                                    Analyzing content...
+                                  </span>
+                                )}
+                                {file.processing_status === 'completed' && (
+                                  <span className="text-xs text-success-600 dark:text-success-400 flex items-center">
+                                    <div className="w-2 h-2 bg-success-500 rounded-full mr-1"></div>
+                                    Ready for search
+                                  </span>
+                                )}
+                                {file.processing_status === 'failed' && (
+                                  <span className="text-xs text-error-600 dark:text-error-400 flex items-center">
+                                    <div className="w-2 h-2 bg-error-500 rounded-full mr-1"></div>
+                                    Processing failed
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -412,7 +482,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
                 ) : (
                   <>
                     <p className="text-secondary-600 dark:text-secondary-400 mb-2">
-                      Drag and drop files here, or click to select
+                      Drag and drop PDF or TXT files here, or click to select
                     </p>
                     <Button
                       variant="outline"
@@ -435,12 +505,22 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
 
               {/* Actions */}
               <div className="flex justify-between pt-4 border-t border-secondary-200 dark:border-secondary-700">
-                <Button
-                  variant="danger"
-                  onClick={() => setShowDeleteConfirm(true)}
-                >
-                  Delete Context
-                </Button>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleCleanupChunks}
+                    disabled={isCleaningChunks}
+                    size="sm"
+                  >
+                    {isCleaningChunks ? 'Cleaning...' : 'Cleanup Invalid Chunks'}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    Delete Context
+                  </Button>
+                </div>
                 <Button
                   onClick={onClose}
                   variant="outline"
