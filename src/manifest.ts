@@ -22,10 +22,6 @@ export default defineManifest({
   side_panel: {
     default_path: "side-panel.html"
   },
-  web_accessible_resources: [{
-    resources: ["src/popup/popup.html", "src/popup/popup.tsx"],
-    matches: ["<all_urls>"]
-  }],
   background: {
     service_worker: "src/background.ts",
   },
