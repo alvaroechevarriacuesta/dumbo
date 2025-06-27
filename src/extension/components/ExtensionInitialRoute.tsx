@@ -3,16 +3,13 @@ import { Navigate } from 'react-router-dom';
 import { useExtensionAuth } from '../contexts/ExtensionAuthContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
-interface ExtensionProtectedRouteProps {
-  children: React.ReactNode;
-}
-
-const ExtensionProtectedRoute: React.FC<ExtensionProtectedRouteProps> = ({ children }) => {
+const ExtensionInitialRoute: React.FC = () => {
   const { isAuthenticated, isLoading } = useExtensionAuth();
 
-  console.log('ExtensionProtectedRoute - isLoading:', isLoading, 'isAuthenticated:', isAuthenticated);
+  console.log('ExtensionInitialRoute - RENDER - isLoading:', isLoading, 'isAuthenticated:', isAuthenticated);
 
   if (isLoading) {
+    console.log('ExtensionInitialRoute - Showing loading spinner');
     return (
       <div className="h-full flex items-center justify-center bg-secondary-50 dark:bg-secondary-900">
         <div className="text-center">
@@ -25,13 +22,15 @@ const ExtensionProtectedRoute: React.FC<ExtensionProtectedRouteProps> = ({ child
     );
   }
 
+  // If not authenticated, redirect to auth page
   if (!isAuthenticated) {
-    console.log('ExtensionProtectedRoute - Redirecting to /auth');
+    console.log('ExtensionInitialRoute - NOT AUTHENTICATED - Redirecting to /auth');
     return <Navigate to="/auth" replace />;
   }
 
-  console.log('ExtensionProtectedRoute - Rendering protected content');
-  return <>{children}</>;
+  // If authenticated, redirect to main app
+  console.log('ExtensionInitialRoute - AUTHENTICATED - Redirecting to /chat');
+  return <Navigate to="/chat" replace />;
 };
 
-export default ExtensionProtectedRoute;
+export default ExtensionInitialRoute; 

@@ -20,6 +20,9 @@ export interface DatabaseFile {
   type: string;
   path?: string;
   publicUrl?: string;
+  content?: string;
+  processing_status?: 'pending' | 'processing' | 'completed' | 'failed';
+  processing_error?: string;
   created_at: string;
   updated_at: string;
 }

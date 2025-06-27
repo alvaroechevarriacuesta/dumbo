@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "dev:extension": "vite --mode extension",
+    "dev:extension-v2": "vite --mode extension-v2",
     "build": "tsc -b && vite build",
     "build:extension": "tsc -b && vite build --mode extension",
+    "build:extension-v2": "tsc -b && vite build --mode extension-v2",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -15,6 +17,7 @@
     "@hookform/resolvers": "^3.3.4",
     "@supabase/supabase-js": "^2.39.0",
     "clsx": "^2.0.0",
+    "highlight.js": "^11.11.1",
     "lucide-react": "^0.460.0",
     "openai": "^4.28.0",
     "pdfjs-dist": "^4.0.379",
@@ -30,11 +33,11 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@eslint/js": "^9.29.0",
     "@crxjs/vite-plugin": "^2.0.0-beta.23",
+    "@eslint/js": "^9.29.0",
+    "@types/chrome": "^0.0.268",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "@types/chrome": "^0.0.268",
     "@vitejs/plugin-react": "^4.5.2",
     "autoprefixer": "^10.4.16",
     "eslint": "^9.29.0",

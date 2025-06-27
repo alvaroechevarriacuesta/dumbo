@@ -1,11 +1,11 @@
 import React from 'react';
 import ExtensionLayout from '../components/ExtensionLayout';
-import ChatInterface from '../../components/chat/ChatInterface';
+import ExtensionChatInterface from '../components/ExtensionChatInterface';
 
 const ExtensionChatPage: React.FC = () => {
   return (
     <ExtensionLayout>
-      <ChatInterface />
+      <ExtensionChatInterface />
     </ExtensionLayout>
   );
 };

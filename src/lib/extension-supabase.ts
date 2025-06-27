@@ -1,38 +1,45 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-interface ImportMetaEnv {
-  VITE_SUPABASE_URL: string;
-  VITE_SUPABASE_ANON_KEY: string;
-}
-
-// Get environment variables from the extension context
-const getEnvVars = () => {
-  // In extension context, we need to access env vars differently
-  if (typeof chrome !== 'undefined' && chrome.runtime) {
-    // For now, we'll use the same approach as the main app
-    // In production, you might want to store these in chrome.storage
-    return {
-      supabaseUrl: (import.meta as { env: ImportMetaEnv }).env.VITE_SUPABASE_URL,
-      supabaseAnonKey: (import.meta as { env: ImportMetaEnv }).env.VITE_SUPABASE_ANON_KEY,
-    };
-  }
-  
-  return {
-    supabaseUrl: (import.meta as { env: ImportMetaEnv }).env.VITE_SUPABASE_URL,
-    supabaseAnonKey: (import.meta as { env: ImportMetaEnv }).env.VITE_SUPABASE_ANON_KEY,
-  };
+// Chrome storage adapter for Supabase
+const chromeStorageAdapter = {
+  getItem: async (key: string) => {
+    console.log('ChromeStorageAdapter - getItem:', key);
+    const result = await chrome.storage.local.get(key);
+    console.log('ChromeStorageAdapter - getItem result:', result[key]);
+    return result[key] ?? null;
+  },
+  setItem: async (key: string, value: string) => {
+    console.log('ChromeStorageAdapter - setItem:', key, value.substring(0, 50) + '...');
+    await chrome.storage.local.set({ [key]: value });
+  },
+  removeItem: async (key: string) => {
+    console.log('ChromeStorageAdapter - removeItem:', key);
+    await chrome.storage.local.remove(key);
+  },
 };
 
-const { supabaseUrl, supabaseAnonKey } = getEnvVars();
+// Get environment variables from Vite's import.meta.env
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+console.log('Extension Supabase - Environment check:');
+console.log('VITE_SUPABASE_URL:', supabaseUrl ? 'Present' : 'Missing');
+console.log('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Present' : 'Missing');
 
 let extensionSupabase: SupabaseClient;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Missing Supabase environment variables in extension context.');
+  console.warn('VITE_SUPABASE_URL:', supabaseUrl);
+  console.warn('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Present' : 'Missing');
+  
   // Create a mock client to prevent app crashes during development
   extensionSupabase = {
     auth: {
-      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+      getSession: () => {
+        console.log('Mock Supabase - getSession called');
+        return Promise.resolve({ data: { session: null }, error: null });
+      },
       signInWithPassword: () => Promise.resolve({ data: { user: null, session: null }, error: { message: 'Supabase not configured' } }),
       signUp: () => Promise.resolve({ data: { user: null, session: null }, error: { message: 'Supabase not configured' } }),
       signOut: () => Promise.resolve({ error: null }),
@@ -53,20 +60,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
     },
   } as unknown as SupabaseClient;
 } else {
+  console.log('Creating Supabase client with URL:', supabaseUrl);
   extensionSupabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
-      storage: {
-        getItem: async (key: string) => {
-          const result = await chrome.storage.local.get([key]);
-          return result[key] || null;
-        },
-        setItem: async (key: string, value: string) => {
-          await chrome.storage.local.set({ [key]: value });
-        },
-        removeItem: async (key: string) => {
-          await chrome.storage.local.remove([key]);
-        },
-      },
+      storage: chromeStorageAdapter,
       autoRefreshToken: true,
       persistSession: true,
     },

@@ -1,15 +1,16 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { extensionSupabase as supabase } from '../../lib/extension-supabase';
-import type { User, LoginCredentials, SignupCredentials, AuthState } from '../../types/auth';
+import { supabase } from '../lib/supabase';
+import { chromeStorage } from '../lib/chrome-storage';
+import type { User, LoginCredentials, SignupCredentials, AuthState } from '../types/auth';
 
-interface ExtensionAuthContextType extends AuthState {
+interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
   signup: (credentials: SignupCredentials) => Promise<void>;
   logout: () => Promise<void>;
 }
 
-const ExtensionAuthContext = createContext<ExtensionAuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 type AuthAction =
   | { type: 'AUTH_START' }
@@ -41,7 +42,6 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
     case 'AUTH_LOGOUT':
       return {
         ...state,
-        isLoading: false,
         isAuthenticated: false,
         user: null,
         error: null,
@@ -56,7 +56,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
-  isLoading: true,
+  isLoading: true, // Start with loading true to check session
   error: null,
 };
 
@@ -64,20 +64,53 @@ export const ExtensionAuthProvider: React.FC<{ children: ReactNode }> = ({ child
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   useEffect(() => {
-    // Check for existing session
+    // Check for existing session from Chrome storage first, then Supabase
     const checkSession = async () => {
       try {
-        console.log('ExtensionAuthContext - Starting session check');
         dispatch({ type: 'AUTH_START' });
         
-        // Get current session from Supabase (which uses Chrome storage)
-        console.log('ExtensionAuthContext - Getting session from Supabase');
+        // First try to get auth data from Chrome storage
+        const storedUser = await chromeStorage.get('user');
+        const storedAuthToken = await chromeStorage.get('authToken');
+        
+        if (storedUser && storedAuthToken) {
+          // Set the session in Supabase with stored token
+          const { data: { session }, error } = await supabase.auth.setSession({
+            access_token: storedAuthToken as string,
+            refresh_token: (await chromeStorage.get('refreshToken')) as string || '',
+          });
+          
+          if (error) {
+            console.error('Error setting session from storage:', error);
+            // Clear invalid stored data
+            await chromeStorage.clear();
+            dispatch({ type: 'AUTH_ERROR', payload: 'Invalid stored session' });
+            return;
+          }
+
+          if (session?.user) {
+            const user: User = {
+              id: session.user.id,
+              email: session.user.email!,
+              username: session.user.user_metadata?.username || session.user.email!.split('@')[0],
+              avatar: session.user.user_metadata?.avatar_url,
+              createdAt: new Date(session.user.created_at),
+            };
+            dispatch({ type: 'AUTH_SUCCESS', payload: user });
+            return;
+          }
+        }
+
+        // Fallback to regular Supabase session check
         const { data: { session }, error } = await supabase.auth.getSession();
         
-        console.log('ExtensionAuthContext - Session result:', { session: !!session, error: !!error });
-        
-        if (session?.user && !error) {
-          console.log('ExtensionAuthContext - Valid session found, user:', session.user.email);
+        if (error) {
+          console.error('Error getting session:', error);
+          dispatch({ type: 'AUTH_ERROR', payload: error.message });
+          return;
+        }
+
+        if (session?.user) {
           const user: User = {
             id: session.user.id,
             email: session.user.email!,
@@ -86,25 +119,25 @@ export const ExtensionAuthProvider: React.FC<{ children: ReactNode }> = ({ child
             createdAt: new Date(session.user.created_at),
           };
           dispatch({ type: 'AUTH_SUCCESS', payload: user });
-          return;
+          
+          // Save to Chrome storage
+          await chromeStorage.set('user', user);
+          await chromeStorage.set('authToken', session.access_token);
+          await chromeStorage.set('refreshToken', session.refresh_token);
+        } else {
+          dispatch({ type: 'AUTH_ERROR', payload: 'No active session' });
         }
-        
-        // No valid session found - this is normal, not an error
-        console.log('ExtensionAuthContext - No valid session found, setting to logged out');
-        dispatch({ type: 'AUTH_LOGOUT' });
       } catch (error) {
-        console.error('ExtensionAuthContext - Session check error:', error);
-        dispatch({ type: 'AUTH_LOGOUT' });
+        console.error('Session check error:', error);
+        dispatch({ type: 'AUTH_ERROR', payload: 'Failed to check authentication status' });
       }
     };
 
     checkSession();
 
     // Listen for auth changes
-    console.log('ExtensionAuthContext - Setting up auth state change listener');
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('ExtensionAuthContext - Auth state change:', event, 'session:', !!session);
         if (event === 'SIGNED_IN' && session?.user) {
           const user: User = {
             id: session.user.id,
@@ -114,8 +147,19 @@ export const ExtensionAuthProvider: React.FC<{ children: ReactNode }> = ({ child
             createdAt: new Date(session.user.created_at),
           };
           dispatch({ type: 'AUTH_SUCCESS', payload: user });
+          
+          // Save to Chrome storage
+          await chromeStorage.set('user', user);
+          await chromeStorage.set('authToken', session.access_token);
+          await chromeStorage.set('refreshToken', session.refresh_token);
         } else if (event === 'SIGNED_OUT') {
           dispatch({ type: 'AUTH_LOGOUT' });
+          // Clear Chrome storage
+          await chromeStorage.clear();
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          // Update stored tokens
+          await chromeStorage.set('authToken', session.access_token);
+          await chromeStorage.set('refreshToken', session.refresh_token);
         }
       }
     );
@@ -145,10 +189,14 @@ export const ExtensionAuthProvider: React.FC<{ children: ReactNode }> = ({ child
           createdAt: new Date(data.user.created_at),
         };
         dispatch({ type: 'AUTH_SUCCESS', payload: user });
+        
+        // Save to Chrome storage
+        await chromeStorage.set('user', user);
+        await chromeStorage.set('authToken', data.session.access_token);
+        await chromeStorage.set('refreshToken', data.session.refresh_token);
       }
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Login failed';
-      dispatch({ type: 'AUTH_ERROR', payload: errorMessage });
+      dispatch({ type: 'AUTH_ERROR', payload: error instanceof Error ? error.message : 'Login failed' });
       throw error;
     }
   };
@@ -172,6 +220,7 @@ export const ExtensionAuthProvider: React.FC<{ children: ReactNode }> = ({ child
       }
 
       if (data.user) {
+        // If email confirmation is disabled, user will be automatically signed in
         if (data.session) {
           const user: User = {
             id: data.user.id,
@@ -181,13 +230,19 @@ export const ExtensionAuthProvider: React.FC<{ children: ReactNode }> = ({ child
             createdAt: new Date(data.user.created_at),
           };
           dispatch({ type: 'AUTH_SUCCESS', payload: user });
+          
+          // Save to Chrome storage
+          await chromeStorage.set('user', user);
+          await chromeStorage.set('authToken', data.session.access_token);
+          await chromeStorage.set('refreshToken', data.session.refresh_token);
         } else {
+          // Email confirmation required
           dispatch({ type: 'AUTH_LOGOUT' });
+          // You might want to show a message about email confirmation
         }
       }
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Signup failed';
-      dispatch({ type: 'AUTH_ERROR', payload: errorMessage });
+      dispatch({ type: 'AUTH_ERROR', payload: error instanceof Error ? error.message : 'Signup failed' });
       throw error;
     }
   };
@@ -199,23 +254,33 @@ export const ExtensionAuthProvider: React.FC<{ children: ReactNode }> = ({ child
         console.error('Logout error:', error);
       }
       dispatch({ type: 'AUTH_LOGOUT' });
+      // Clear Chrome storage
+      await chromeStorage.clear();
     } catch (error) {
       console.error('Logout error:', error);
       dispatch({ type: 'AUTH_LOGOUT' });
+      await chromeStorage.clear();
     }
   };
 
   return (
-    <ExtensionAuthContext.Provider value={{ ...state, login, signup, logout }}>
+    <AuthContext.Provider
+      value={{
+        ...state,
+        login,
+        signup,
+        logout,
+      }}
+    >
       {children}
-    </ExtensionAuthContext.Provider>
+    </AuthContext.Provider>
   );
 };
 
-export const useExtensionAuth = (): ExtensionAuthContextType => {
-  const context = useContext(ExtensionAuthContext);
+export const useExtensionAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useExtensionAuth must be used within an ExtensionAuthProvider');
   }
   return context;
-};
+}; 

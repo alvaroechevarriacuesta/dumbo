@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
+import { chromeStorage } from '../lib/chrome-storage';
 import type { User, LoginCredentials, SignupCredentials, AuthState } from '../types/auth';
 
 interface AuthContextType extends AuthState {
@@ -106,8 +108,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             createdAt: new Date(session.user.created_at),
           };
           dispatch({ type: 'AUTH_SUCCESS', payload: user });
+          
+          // Save to Chrome storage for extension
+          await chromeStorage.set('user', user);
+          await chromeStorage.set('authToken', session.access_token);
+          await chromeStorage.set('refreshToken', session.refresh_token);
         } else if (event === 'SIGNED_OUT') {
           dispatch({ type: 'AUTH_LOGOUT' });
+          // Clear Chrome storage
+          await chromeStorage.clear();
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          // Update stored tokens
+          await chromeStorage.set('authToken', session.access_token);
+          await chromeStorage.set('refreshToken', session.refresh_token);
         }
       }
     );
@@ -137,9 +150,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           createdAt: new Date(data.user.created_at),
         };
         dispatch({ type: 'AUTH_SUCCESS', payload: user });
+        
+        // Save to Chrome storage for extension
+        if (data.session) {
+          await chromeStorage.set('user', user);
+          await chromeStorage.set('authToken', data.session.access_token);
+          await chromeStorage.set('refreshToken', data.session.refresh_token);
+        }
       }
-    } catch (error: any) {
-      dispatch({ type: 'AUTH_ERROR', payload: error.message || 'Login failed' });
+    } catch (error: unknown) {
+      dispatch({ type: 'AUTH_ERROR', payload: error instanceof Error ? error.message : 'Login failed' });
       throw error;
     }
   };
@@ -173,14 +193,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             createdAt: new Date(data.user.created_at),
           };
           dispatch({ type: 'AUTH_SUCCESS', payload: user });
+          
+          // Save to Chrome storage for extension
+          await chromeStorage.set('user', user);
+          await chromeStorage.set('authToken', data.session.access_token);
+          await chromeStorage.set('refreshToken', data.session.refresh_token);
         } else {
           // Email confirmation required
           dispatch({ type: 'AUTH_LOGOUT' });
           // You might want to show a message about email confirmation
         }
       }
-    } catch (error: any) {
-      dispatch({ type: 'AUTH_ERROR', payload: error.message || 'Signup failed' });
+    } catch (error: unknown) {
+      dispatch({ type: 'AUTH_ERROR', payload: error instanceof Error ? error.message : 'Signup failed' });
       throw error;
     }
   };
@@ -192,9 +217,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.error('Logout error:', error);
       }
       dispatch({ type: 'AUTH_LOGOUT' });
+      // Clear Chrome storage
+      await chromeStorage.clear();
     } catch (error) {
       console.error('Logout error:', error);
       dispatch({ type: 'AUTH_LOGOUT' });
+      await chromeStorage.clear();
     }
   };
 

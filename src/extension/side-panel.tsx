@@ -4,10 +4,15 @@ import { Toaster } from 'react-hot-toast';
 import '../index.css';
 import ExtensionApp from './ExtensionApp';
 
+console.log('Side panel entry point - Starting');
+
 const root = document.getElementById('extension-root');
 if (!root) {
+  console.error('Extension root element not found');
   throw new Error('Extension root element not found');
 }
+
+console.log('Side panel entry point - Root element found, rendering ExtensionApp');
 
 createRoot(root).render(
   <StrictMode>
@@ -25,3 +30,5 @@ createRoot(root).render(
     />
   </StrictMode>,
 );
+
+console.log('Side panel entry point - ExtensionApp rendered');

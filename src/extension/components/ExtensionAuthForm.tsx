@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useExtensionAuth } from '../contexts/ExtensionAuthContext';
+import { extensionSupabase } from '../../lib/extension-supabase';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import type { LoginCredentials, SignupCredentials } from '../../types/auth';
@@ -20,7 +20,8 @@ const signupSchema = z.object({
 
 const ExtensionAuthForm: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const { login, signup, isLoading, error } = useExtensionAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const {
     register,
@@ -32,19 +33,46 @@ const ExtensionAuthForm: React.FC = () => {
   });
 
   const onSubmit = async (data: LoginCredentials & SignupCredentials) => {
+    setIsLoading(true);
+    setError(null);
+    
     try {
       if (isLogin) {
-        await login({ email: data.email, password: data.password });
+        const { error } = await extensionSupabase.auth.signInWithPassword({
+          email: data.email,
+          password: data.password,
+        });
+        
+        if (error) {
+          throw error;
+        }
       } else {
-        await signup({ email: data.email, password: data.password, username: data.username });
+        const { error } = await extensionSupabase.auth.signUp({
+          email: data.email,
+          password: data.password,
+          options: {
+            data: {
+              username: data.username,
+            },
+          },
+        });
+        
+        if (error) {
+          throw error;
+        }
       }
-    } catch (error) {
-      // Error is handled by the auth context
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+      setError(errorMessage);
+      console.error('Auth error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const toggleMode = () => {
     setIsLogin(!isLogin);
+    setError(null);
     reset();
   };
 
@@ -102,9 +130,13 @@ const ExtensionAuthForm: React.FC = () => {
             <Button
               type="submit"
               className="w-full"
-              isLoading={isLoading}
+              disabled={isLoading}
             >
-              {isLogin ? 'Sign In' : 'Create Account'}
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                isLogin ? 'Sign In' : 'Create Account'
+              )}
             </Button>
           </form>
 

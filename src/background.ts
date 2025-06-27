@@ -1,55 +1,59 @@
 // Background script for Chrome extension
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('Extendo Dumbo extension installed');
-});
+console.log("Background script loaded");
 
-// Handle command shortcuts
-chrome.commands.onCommand.addListener(async (command) => {
-  if (command === 'toggle-side-panel') {
-    await toggleSidePanel();
-  } else if (command === 'save-page') {
-    await saveCurrentPage();
-  }
-});
+chrome.runtime.onInstalled.addListener(async () => {
+  console.log("Extension installed or updated");
 
-// Handle action button click
-chrome.action.onClicked.addListener(async () => {
-  await toggleSidePanel();
-});
+  // Enable side panel on toolbar icon click
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
-async function toggleSidePanel() {
+  // Set default side panel options
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id) {
-      await chrome.sidePanel.open({ tabId: tab.id });
-    }
+    await chrome.sidePanel.setOptions({
+      path: "side-panel.html",
+      enabled: true,
+    });
+    console.log("Side panel options set");
   } catch (error) {
-    console.error('Failed to toggle side panel:', error);
+    console.error("Failed to set side panel options:", error);
   }
-}
+});
 
-async function saveCurrentPage() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.url && tab?.title) {
-      // Store page info for later processing
-      await chrome.storage.local.set({
-        pendingPage: {
-          url: tab.url,
-          title: tab.title,
-          timestamp: Date.now()
-        }
-      });
-      
-      // Open side panel to process the saved page
-      if (tab.id) {
-        await chrome.sidePanel.open({ tabId: tab.id });
+// Keyboard shortcut listener
+chrome.commands.onCommand.addListener((command) => {
+  console.log("Command received:", command);
+  if (command === "toggle-side-panel") {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabId = tabs[0]?.id;
+      if (tabId) {
+        console.log("Opening side panel on tab:", tabId);
+        chrome.sidePanel.open({ tabId });
+      } else {
+        console.warn("No active tab found");
       }
-    }
-  } catch (error) {
-    console.error('Failed to save current page:', error);
+    });
+  } else if (command === "save-page") {
+    // Save current page info and open side panel
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs[0];
+      if (tab?.url && tab?.title) {
+        // Store page info for later processing
+        chrome.storage.local.set({
+          pendingPage: {
+            url: tab.url,
+            title: tab.title,
+            timestamp: Date.now()
+          }
+        });
+        
+        // Open side panel to process the saved page
+        if (tab.id) {
+          chrome.sidePanel.open({ tabId: tab.id });
+        }
+      }
+    });
   }
-}
+});
 
 // Listen for messages from content scripts or side panel
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -58,5 +62,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse(tabs[0]);
     });
     return true; // Keep message channel open for async response
+  }
+  
+  if (message.type === 'OPEN_SIDE_PANEL') {
+    // This can be called from the side panel itself or content scripts
+    if (sender.tab?.id) {
+      chrome.sidePanel.open({ tabId: sender.tab.id });
+    }
+    sendResponse({ success: true });
+    return true;
   }
 });

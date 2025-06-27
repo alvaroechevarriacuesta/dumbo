@@ -2,14 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Menu, Sun, Moon, LogOut, Settings, Globe, Save } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useSidebar } from '../../contexts/SidebarContext';
-import { useExtensionAuth } from '../contexts/ExtensionAuthContext';
+import { extensionSupabase } from '../../lib/extension-supabase';
 import Button from '../../components/ui/Button';
 import toast from 'react-hot-toast';
 
 const ExtensionHeader: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const { isOpen, toggle } = useSidebar();
-  const { logout } = useExtensionAuth();
   const [currentTab, setCurrentTab] = useState<chrome.tabs.Tab | null>(null);
 
   useEffect(() => {
@@ -46,6 +45,16 @@ const ExtensionHeader: React.FC = () => {
     } catch (error) {
       console.error('Failed to save page:', error);
       toast.error('Failed to save page');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await extensionSupabase.auth.signOut();
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error('Failed to logout:', error);
+      toast.error('Failed to logout');
     }
   };
 
@@ -111,7 +120,7 @@ const ExtensionHeader: React.FC = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={logout}
+            onClick={handleLogout}
             className="p-2 text-error-600 hover:text-error-700 hover:bg-error-50 dark:text-error-400 dark:hover:text-error-300 dark:hover:bg-error-900/20"
           >
             <LogOut className="h-5 w-5" />

@@ -1,6 +1,6 @@
 import React from 'react';
 import ExtensionHeader from './ExtensionHeader';
-import Sidebar from '../../components/layout/Sidebar';
+import ExtensionSidebar from './ExtensionSidebar';
 import { useSidebar } from '../../contexts/SidebarContext';
 
 interface ExtensionLayoutProps {
@@ -16,7 +16,7 @@ const ExtensionLayout: React.FC<ExtensionLayoutProps> = ({ children }) => {
       <div className={`transition-all duration-300 ease-in-out ${
         isOpen ? 'w-80 border-r border-secondary-200 dark:border-secondary-700' : 'w-0'
       } flex-shrink-0 overflow-hidden`}>
-        <Sidebar />
+        <ExtensionSidebar />
       </div>
 
       {/* Main Content - Always takes remaining space */}

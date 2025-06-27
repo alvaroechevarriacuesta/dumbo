@@ -9,7 +9,6 @@ export default defineManifest({
     "sidePanel",
     "commands",
     "tabs",
-    "windows",
     "storage",
     "storage.local"
   ],
@@ -24,6 +23,7 @@ export default defineManifest({
   },
   background: {
     service_worker: "src/background.ts",
+    type: "module"
   },
   commands: {
     "toggle-side-panel": {
