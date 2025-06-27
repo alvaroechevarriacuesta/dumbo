@@ -83,6 +83,8 @@ export class ChunkService {
     queryEmbedding: number[],
     limit: number = 5
   ): Promise<ChunkSearchResult[]> {
+    console.log('ChunkService: Searching for chunks in context:', contextId);
+    
     // Get all chunks for files and sites in this context
     const { data: fileChunks, error: fileError } = await supabase
       .from('chunks')
@@ -103,14 +105,21 @@ export class ChunkService {
       .not('site_id', 'is', null);
 
     if (fileError && siteError) {
+      console.error('ChunkService: Both file and site queries failed:', { fileError, siteError });
       throw new Error(`Failed to search chunks: ${fileError.message || siteError.message}`);
     }
+
+    console.log('ChunkService: Found file chunks:', fileChunks?.length || 0);
+    console.log('ChunkService: Found site chunks:', siteChunks?.length || 0);
 
     const chunks = [...(fileChunks || []), ...(siteChunks || [])];
 
     if (!chunks || chunks.length === 0) {
+      console.log('ChunkService: No chunks found for context');
       return [];
     }
+
+    console.log('ChunkService: Total chunks to process:', chunks.length);
 
     // Calculate similarity scores for chunks with matching dimensions
     const validResults: ChunkSearchResult[] = [];
@@ -120,11 +129,13 @@ export class ChunkService {
       const parsedEmbedding = this.parseEmbedding(chunk.embedding);
       
       if (parsedEmbedding.length === 0) {
+        console.log('ChunkService: Skipping chunk with empty embedding:', chunk.id);
         continue;
       }
       
       // Only check if dimensions match, don't validate quality
       if (parsedEmbedding.length !== queryEmbedding.length) {
+        console.log('ChunkService: Skipping chunk with dimension mismatch:', chunk.id, 'expected:', queryEmbedding.length, 'got:', parsedEmbedding.length);
         continue;
       }
       
@@ -146,16 +157,20 @@ export class ChunkService {
           },
           similarity,
         });
-      } catch {
+      } catch (error) {
+        console.log('ChunkService: Error calculating similarity for chunk:', chunk.id, error);
         continue;
       }
     }
+
+    console.log('ChunkService: Valid results with similarity scores:', validResults.length);
 
     // Sort by similarity (highest first) and return top results
     const topResults = validResults
       .sort((a, b) => b.similarity - a.similarity)
       .slice(0, limit);
       
+    console.log('ChunkService: Returning top results:', topResults.length);
     return topResults;
   }
 
