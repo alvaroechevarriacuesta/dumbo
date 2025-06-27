@@ -22,6 +22,7 @@ export class OpenAIService {
       const response = await this.client.embeddings.create({
         model: 'text-embedding-3-large',
         input: text,
+        dimensions: 1536,
       });
 
       return response.data[0].embedding;
