@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send } from 'lucide-react';
+import { Send, ChevronUp } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -10,12 +10,23 @@ import 'highlight.js/styles/github-dark.css';
 
 const ChatInterface: React.FC = () => {
   const [message, setMessage] = useState('');
-  const { activeContextId, getCurrentMessages, sendMessage, isStreaming } = useChat();
+  const { 
+    activeContextId, 
+    getCurrentMessages, 
+    sendMessage, 
+    isStreaming, 
+    loadMoreMessages,
+    isLoadingMore,
+    messagesPagination
+  } = useChat();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const messages = getCurrentMessages();
   const hasMessages = messages.length > 0;
+  const pagination = activeContextId ? messagesPagination[activeContextId] : null;
+  const hasMoreMessages = pagination?.hasMore || false;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -51,6 +62,25 @@ const ChatInterface: React.FC = () => {
     setMessage('');
   };
 
+  const handleLoadMore = async () => {
+    if (!activeContextId || isLoadingMore) return;
+    
+    // Store current scroll position
+    const container = messagesContainerRef.current;
+    const scrollHeight = container?.scrollHeight || 0;
+    
+    await loadMoreMessages(activeContextId);
+    
+    // Restore scroll position after new messages are loaded
+    setTimeout(() => {
+      if (container) {
+        const newScrollHeight = container.scrollHeight;
+        const scrollDiff = newScrollHeight - scrollHeight;
+        container.scrollTop = scrollDiff;
+      }
+    }, 100);
+  };
+
   if (!activeContextId) {
     return <WelcomeScreen />;
   }
@@ -58,9 +88,34 @@ const ChatInterface: React.FC = () => {
   return (
     <div className="h-full flex flex-col relative bg-white dark:bg-secondary-900">
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto pb-32">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto pb-32">
         {hasMessages ? (
           <div className="max-w-4xl mx-auto px-6 py-8">
+            {/* Load More Button */}
+            {hasMoreMessages && (
+              <div className="flex justify-center mb-8">
+                <Button
+                  onClick={handleLoadMore}
+                  variant="outline"
+                  size="sm"
+                  disabled={isLoadingMore}
+                  className="flex items-center space-x-2"
+                >
+                  {isLoadingMore ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span>Loading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ChevronUp className="w-4 h-4" />
+                      <span>Load more messages</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+            
             <div className="space-y-12">
               {messages.map((msg, index) => (
                 <div key={msg.id} className="group">

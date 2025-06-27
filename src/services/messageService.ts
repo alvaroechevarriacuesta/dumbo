@@ -11,18 +11,56 @@ export interface DatabaseMessage {
 }
 
 export class MessageService {
-  static async getContextMessages(contextId: string): Promise<Message[]> {
+  static async getContextMessages(
+    contextId: string, 
+    limit: number = 10, 
+    offset: number = 0
+  ): Promise<{ messages: Message[]; hasMore: boolean }> {
+    // Get one extra message to check if there are more
     const { data, error } = await supabase
       .from('messages')
       .select('*')
       .eq('context_id', contextId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit);
 
     if (error) {
       throw new Error(`Failed to fetch messages: ${error.message}`);
     }
 
-    return (data || []).map(this.convertToMessage);
+    const messages = (data || []).map(this.convertToMessage);
+    
+    // Check if there are more messages by trying to fetch one more
+    const { data: nextData } = await supabase
+      .from('messages')
+      .select('id')
+      .eq('context_id', contextId)
+      .order('created_at', { ascending: false })
+      .range(offset + limit, offset + limit);
+    
+    const hasMore = (nextData && nextData.length > 0) || false;
+    
+    // Reverse to show oldest first (chronological order)
+    return {
+      messages: messages.reverse(),
+      hasMore
+    };
+  }
+
+  static async getLatestMessages(contextId: string, limit: number = 10): Promise<Message[]> {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('context_id', contextId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      throw new Error(`Failed to fetch latest messages: ${error.message}`);
+    }
+
+    // Reverse to show oldest first (chronological order)
+    return (data || []).map(this.convertToMessage).reverse();
   }
 
   static async createMessage(

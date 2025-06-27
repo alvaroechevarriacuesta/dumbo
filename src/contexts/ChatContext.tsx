@@ -16,10 +16,12 @@ interface ChatSession {
 
 interface ChatState {
   messages: Record<string, Message[]>; // contextId -> messages
+  messagesPagination: Record<string, { hasMore: boolean; offset: number }>; // contextId -> pagination info
   contexts: ChatContextType[];
   activeContextId: string | null;
   isStreaming: boolean;
   isLoading: boolean;
+  isLoadingMore: boolean;
   error: string | null;
   streamingMessageId: string | null;
 }
@@ -32,6 +34,7 @@ interface ChatContextValue extends ChatState {
   getCurrentMessages: () => Message[];
   refreshContexts: () => Promise<void>;
   loadMessages: (contextId: string) => Promise<void>;
+  loadMoreMessages: (contextId: string) => Promise<void>;
 }
 
 const ChatContext = createContext<ChatContextValue | undefined>(undefined);
@@ -39,6 +42,8 @@ const ChatContext = createContext<ChatContextValue | undefined>(undefined);
 type ChatAction =
   | { type: 'SELECT_CONTEXT'; payload: string }
   | { type: 'SET_MESSAGES'; payload: { contextId: string; messages: Message[] } }
+  | { type: 'PREPEND_MESSAGES'; payload: { contextId: string; messages: Message[] } }
+  | { type: 'SET_PAGINATION'; payload: { contextId: string; hasMore: boolean; offset: number } }
   | { type: 'ADD_MESSAGE'; payload: { contextId: string; message: Message } }
   | { type: 'UPDATE_MESSAGE'; payload: { contextId: string; messageId: string; content: string } }
   | { type: 'SET_CONTEXTS'; payload: ChatContextType[] }
@@ -47,6 +52,7 @@ type ChatAction =
   | { type: 'START_STREAMING'; payload: string }
   | { type: 'STOP_STREAMING' }
   | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_LOADING_MORE'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null };
 
 const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
@@ -62,6 +68,26 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
         messages: {
           ...state.messages,
           [action.payload.contextId]: action.payload.messages,
+        },
+      };
+    case 'PREPEND_MESSAGES':
+      const existingMsgs = state.messages[action.payload.contextId] || [];
+      return {
+        ...state,
+        messages: {
+          ...state.messages,
+          [action.payload.contextId]: [...action.payload.messages, ...existingMsgs],
+        },
+      };
+    case 'SET_PAGINATION':
+      return {
+        ...state,
+        messagesPagination: {
+          ...state.messagesPagination,
+          [action.payload.contextId]: {
+            hasMore: action.payload.hasMore,
+            offset: action.payload.offset,
+          },
         },
       };
     case 'ADD_MESSAGE':
@@ -112,6 +138,8 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
       return { ...state, isStreaming: false, streamingMessageId: null };
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
+    case 'SET_LOADING_MORE':
+      return { ...state, isLoadingMore: action.payload };
     case 'SET_ERROR':
       return { ...state, error: action.payload };
     default:
@@ -121,10 +149,12 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
 
 const initialState: ChatState = {
   messages: {},
+  messagesPagination: {},
   contexts: [],
   activeContextId: null,
   isStreaming: false,
   isLoading: false,
+  isLoadingMore: false,
   error: null,
   streamingMessageId: null,
 };
@@ -180,11 +210,42 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const loadMessages = async (contextId: string): Promise<void> => {
     try {
-      const messages = await MessageService.getContextMessages(contextId);
+      const { messages, hasMore } = await MessageService.getContextMessages(contextId, 10, 0);
       dispatch({ type: 'SET_MESSAGES', payload: { contextId, messages } });
+      dispatch({ type: 'SET_PAGINATION', payload: { contextId, hasMore, offset: messages.length } });
     } catch (error) {
       console.error('Failed to load messages:', error);
       toast.error('Failed to load chat history');
+    }
+  };
+
+  const loadMoreMessages = async (contextId: string): Promise<void> => {
+    const pagination = state.messagesPagination[contextId];
+    if (!pagination || !pagination.hasMore || state.isLoadingMore) return;
+
+    dispatch({ type: 'SET_LOADING_MORE', payload: true });
+
+    try {
+      const { messages, hasMore } = await MessageService.getContextMessages(
+        contextId, 
+        10, 
+        pagination.offset
+      );
+      
+      dispatch({ type: 'PREPEND_MESSAGES', payload: { contextId, messages } });
+      dispatch({ 
+        type: 'SET_PAGINATION', 
+        payload: { 
+          contextId, 
+          hasMore, 
+          offset: pagination.offset + messages.length 
+        } 
+      });
+    } catch (error) {
+      console.error('Failed to load more messages:', error);
+      toast.error('Failed to load more messages');
+    } finally {
+      dispatch({ type: 'SET_LOADING_MORE', payload: false });
     }
   };
   const sendMessage = async (content: string): Promise<void> => {
@@ -313,6 +374,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         getCurrentMessages,
         refreshContexts,
         loadMessages,
+        loadMoreMessages,
       }}
     >
       {children}
