@@ -1,6 +1,7 @@
 import * as pdfjsLib from "pdfjs-dist";
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.js', import.meta.url).toString();
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 export class PDFService {
   static async extractTextFromPDF(file: File): Promise<string> {
