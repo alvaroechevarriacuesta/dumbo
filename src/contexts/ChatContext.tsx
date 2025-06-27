@@ -313,19 +313,9 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       // Stream response using RAG
       let fullResponse = '';
-      let ragContextData = null;
 
-      for await (const result of RAGService.streamRAGResponse(content, state.activeContextId, conversationHistory)) {
-        fullResponse += result.chunk;
-        
-        // Store RAG context from the first chunk
-        if (result.context && !ragContextData) {
-          ragContextData = result.context;
-          dispatch({
-            type: 'SET_RAG_CONTEXT',
-            payload: { contextId: state.activeContextId, ragContext: ragContextData },
-          });
-        }
+      for await (const chunk of RAGService.streamRAGResponse(content, state.activeContextId, conversationHistory)) {
+        fullResponse += chunk;
         
         // Update the message in real-time
         dispatch({

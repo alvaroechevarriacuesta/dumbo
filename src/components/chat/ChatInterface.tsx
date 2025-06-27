@@ -6,7 +6,6 @@ import { Send, ChevronUp } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import Button from '../ui/Button';
 import WelcomeScreen from './WelcomeScreen';
-import RAGIndicator from './RAGIndicator';
 import 'highlight.js/styles/github-dark.css';
 
 const ChatInterface: React.FC = () => {

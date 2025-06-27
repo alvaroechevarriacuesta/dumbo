@@ -110,7 +110,7 @@ export class RAGService {
     query: string,
     contextId: string,
     conversationHistory: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = []
-  ): AsyncGenerator<{ chunk: string; context?: RAGContext }, void, unknown> {
+  ): AsyncGenerator<string, void, unknown> {
     try {
       const openaiService = getOpenAIService();
       
@@ -150,21 +150,13 @@ export class RAGService {
       };
 
       // Stream response with context
-      const stream = this.streamContextualResponse(
+      for await (const chunk of this.streamContextualResponse(
         query,
         selectedChunks,
         conversationHistory,
         hasRelevantContext
-      );
-
-      let isFirstChunk = true;
-      for await (const chunk of stream) {
-        if (isFirstChunk) {
-          yield { chunk, context: ragContext };
-          isFirstChunk = false;
-        } else {
-          yield { chunk };
-        }
+      )) {
+        yield chunk;
       }
     } catch (error) {
       console.error('RAG streaming failed:', error);
@@ -178,21 +170,8 @@ export class RAGService {
       
       const stream = openaiService.streamChatCompletion(fallbackMessages);
       
-      let isFirstChunk = true;
       for await (const chunk of stream) {
-        if (isFirstChunk) {
-          yield { 
-            chunk, 
-            context: {
-              chunks: [],
-              totalRelevantChunks: 0,
-              averageSimilarity: 0,
-            }
-          };
-          isFirstChunk = false;
-        } else {
-          yield { chunk };
-        }
+        yield chunk;
       }
     }
   }
@@ -281,7 +260,7 @@ export class RAGService {
    * Build system prompt with context
    */
   private static buildSystemPrompt(chunks: ChunkSearchResult[], hasRelevantContext: boolean): string {
-    let systemPrompt = `You are a helpful AI assistant. Provide comprehensive, detailed responses with examples, explanations, and actionable insights. Use markdown formatting to structure your responses clearly with headers, lists, code blocks, and other formatting as appropriate.`;
+    let systemPrompt = `You are a helpful AI assistant. Go into as much detail as possible. Provide comprehensive, thorough responses with examples, explanations, and actionable insights. Use markdown formatting to structure your responses clearly with headers, lists, code blocks, and other formatting as appropriate.`;
 
     if (hasRelevantContext && chunks.length > 0) {
       const contextInfo = chunks
