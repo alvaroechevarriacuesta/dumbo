@@ -19,6 +19,77 @@ chrome.runtime.onInstalled.addListener(async () => {
   }
 });
 
+// Function to extract DOM text from a tab
+async function extractDOMTextFromTab(tabId: number): Promise<string> {
+  return new Promise((resolve) => {
+    console.log('Attempting to extract DOM text from tab:', tabId);
+    
+    // Try to send message to content script
+    chrome.tabs.sendMessage(tabId, { type: 'GET_DOM_TEXT' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.log('Content script not available, error:', chrome.runtime.lastError.message);
+        // If content script is not available, try to inject it
+        chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          func: () => {
+            // Simple DOM text extraction function
+            function extractText() {
+              if (!document.body) return '';
+              
+              // Get all text content, excluding script and style elements
+              const walker = document.createTreeWalker(
+                document.body,
+                NodeFilter.SHOW_TEXT,
+                {
+                  acceptNode: function(node) {
+                    const parent = node.parentElement;
+                    if (parent && (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE')) {
+                      return NodeFilter.FILTER_REJECT;
+                    }
+                    if (!node.textContent || node.textContent.trim() === '') {
+                      return NodeFilter.FILTER_REJECT;
+                    }
+                    return NodeFilter.FILTER_ACCEPT;
+                  }
+                }
+              );
+
+              const textNodes: string[] = [];
+              let node;
+              while ((node = walker.nextNode()) !== null) {
+                const text = node.textContent?.trim();
+                if (text) {
+                  textNodes.push(text);
+                }
+              }
+
+              const fullText = textNodes.join(' ');
+              return fullText;
+            }
+            
+            return extractText();
+          }
+        }, (results) => {
+          if (chrome.runtime.lastError) {
+            console.log('Failed to execute script:', chrome.runtime.lastError.message);
+            resolve('');
+          } else {
+            const domText = results?.[0]?.result || '';
+            console.log('First 150 characters of DOM text:', domText.substring(0, 150));
+            console.log('Extracted DOM text via script injection, length:', domText.length);
+            resolve(domText);
+          }
+        });
+      } else {
+        console.log('Content script response:', response);
+        const domText = response?.domText || '';
+        console.log('Extracted DOM text via content script, length:', domText.length);
+        resolve(domText);
+      }
+    });
+  });
+}
+
 // Keyboard shortcut listener
 chrome.commands.onCommand.addListener((command) => {
   console.log("Command received:", command);
@@ -33,23 +104,81 @@ chrome.commands.onCommand.addListener((command) => {
       }
     });
   } else if (command === "save-page") {
-    // Save current page info and open side panel
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    console.log('save-page command received, creating popup window...');
+    // Create popup window for contexts
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       const tab = tabs[0];
-      if (tab?.url && tab?.title) {
-        // Store page info for later processing
-        chrome.storage.local.set({
-          pendingPage: {
-            url: tab.url,
-            title: tab.title,
-            timestamp: Date.now()
-          }
-        });
-        
-        // Open side panel to process the saved page
-        if (tab.id) {
-          chrome.sidePanel.open({ tabId: tab.id });
+      console.log('Active tab found:', tab);
+      if (tab?.id) {
+        try {
+          // Extract DOM text
+          const domText = await extractDOMTextFromTab(tab.id);
+          console.log('Final extracted DOM text length:', domText.length);
+          
+          // Show the popup
+          chrome.windows.getCurrent((currentWindow) => {
+            console.log('Current window:', currentWindow);
+            const width = 500;
+            const height = 600;
+            const left = Math.round(((currentWindow.width ?? 1024) - width) / 2);
+            const top = Math.round(((currentWindow.height ?? 768) - height) / 2);
+            
+            console.log('Creating popup window with dimensions:', { width, height, left, top });
+            
+            chrome.windows.create({
+              url: 'popup.html',
+              type: 'popup',
+              width,
+              height,
+              left,
+              top,
+              focused: true
+            }, (popupWindow) => {
+              console.log('Popup window created:', popupWindow);
+              if (popupWindow?.id) {
+                // Store the DOM text for the popup to retrieve
+                chrome.storage.local.set({
+                  popupData: {
+                    domText: domText,
+                    timestamp: Date.now()
+                  }
+                }, () => {
+                  console.log('Popup data stored in local storage');
+                });
+              }
+            });
+          });
+        } catch (error) {
+          console.error('Error extracting DOM text:', error);
+          // Still create popup with empty text
+          chrome.windows.getCurrent((currentWindow) => {
+            const width = 500;
+            const height = 600;
+            const left = Math.round(((currentWindow.width ?? 1024) - width) / 2);
+            const top = Math.round(((currentWindow.height ?? 768) - height) / 2);
+            
+            chrome.windows.create({
+              url: 'popup.html',
+              type: 'popup',
+              width,
+              height,
+              left,
+              top,
+              focused: true
+            }, (popupWindow) => {
+              if (popupWindow?.id) {
+                chrome.storage.local.set({
+                  popupData: {
+                    domText: '',
+                    timestamp: Date.now()
+                  }
+                });
+              }
+            });
+          });
         }
+      } else {
+        console.log('No active tab found or tab has no ID');
       }
     });
   }
@@ -69,6 +198,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (sender.tab?.id) {
       chrome.sidePanel.open({ tabId: sender.tab.id });
     }
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (message.type === 'SHOW_POPUP') {
+    console.log('Received SHOW_POPUP message:', message);
+    
+    // Show the popup
+    chrome.windows.getCurrent((currentWindow) => {
+      const width = 500;
+      const height = 600;
+      const left = Math.round(((currentWindow.width ?? 1024) - width) / 2);
+      const top = Math.round(((currentWindow.height ?? 768) - height) / 2);
+      
+      chrome.windows.create({
+        url: 'popup.html',
+        type: 'popup',
+        width,
+        height,
+        left,
+        top,
+        focused: true
+      }, (popupWindow) => {
+        if (popupWindow?.id) {
+          // Store the DOM text for the popup to retrieve
+          chrome.storage.local.set({
+            popupData: {
+              domText: message.domText,
+              timestamp: Date.now()
+            }
+          });
+        }
+      });
+    });
+    
     sendResponse({ success: true });
     return true;
   }

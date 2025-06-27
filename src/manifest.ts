@@ -10,7 +10,9 @@ export default defineManifest({
     "commands",
     "tabs",
     "storage",
-    "storage.local"
+    "storage.local",
+    "activeTab",
+    "scripting"
   ],
   host_permissions: [
     "https://*.supabase.co/*"
@@ -25,6 +27,13 @@ export default defineManifest({
     service_worker: "src/background.ts",
     type: "module"
   },
+  content_scripts: [
+    {
+      matches: ["<all_urls>"],
+      js: ["src/content-script.ts"],
+      run_at: "document_end"
+    }
+  ],
   commands: {
     "toggle-side-panel": {
       suggested_key: {
@@ -38,7 +47,13 @@ export default defineManifest({
         default: "Ctrl+J",
         mac: "Command+J"
       },
-      description: "Save the current page"
+      description: "Show contexts popup"
     }
-  }
+  },
+  web_accessible_resources: [
+    {
+      resources: ["popup.html"],
+      matches: ["<all_urls>"]
+    }
+  ]
 });
