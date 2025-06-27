@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import toast from 'react-hot-toast';
 import type { DatabaseContext, CreateContextData, DatabaseFile, DatabaseSite, CreateFileData } from '../types/database';
 
 export class ContextService {
@@ -34,28 +35,84 @@ export class ContextService {
   }
 
   static async deleteContext(contextId: string): Promise<void> {
-    const { error } = await supabase
-      .from('contexts')
-      .delete()
-      .eq('id', contextId);
+    try {
+      // First, get all files associated with this context
+      const { data: files, error: filesError } = await supabase
+        .from('files')
+        .select('path')
+        .eq('context_id', contextId);
 
-    if (error) {
-      throw new Error(`Failed to delete context: ${error.message}`);
+      if (filesError) {
+        console.error('Failed to fetch files for context deletion:', filesError);
+        // Continue with context deletion even if we can't fetch files
+      }
+
+      // Delete files from storage if any exist
+      if (files && files.length > 0) {
+        const filePaths = files
+          .filter(file => file.path) // Only include files that have a storage path
+          .map(file => file.path!);
+
+        if (filePaths.length > 0) {
+          const { error: storageError } = await supabase.storage
+            .from('files')
+            .remove(filePaths);
+
+          if (storageError) {
+            console.error('Failed to delete files from storage:', storageError);
+            // Continue with context deletion even if storage cleanup fails
+          }
+        }
+      }
+
+      // Delete the context (this will cascade delete files, sites, etc. from database)
+      const { error: deleteError } = await supabase
+        .from('contexts')
+        .delete()
+        .eq('id', contextId);
+
+      if (deleteError) {
+        throw new Error(`Failed to delete context: ${deleteError.message}`);
+      }
+    } catch (error) {
+      console.error('Error deleting context:', error);
+      throw error;
     }
   }
 
   static async getContextFiles(contextId: string): Promise<DatabaseFile[]> {
-    const { data, error } = await supabase
-      .from('files')
-      .select('*')
-      .eq('context_id', contextId)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('files')
+        .select('*')
+        .eq('context_id', contextId)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      throw new Error(`Failed to fetch files: ${error.message}`);
+      if (error) {
+        throw new Error(`Failed to fetch files: ${error.message}`);
+      }
+
+      // Enhance files with public URLs if they have paths
+      const filesWithUrls = await Promise.all(
+        (data || []).map(async (file) => {
+          if (file.path) {
+            try {
+              const publicUrl = await this.getFileUrl(file.path);
+              return { ...file, publicUrl };
+            } catch (urlError) {
+              console.warn(`Failed to get URL for file ${file.id}:`, urlError);
+              return file;
+            }
+          }
+          return file;
+        })
+      );
+
+      return filesWithUrls;
+    } catch (error) {
+      console.error('Error fetching context files:', error);
+      throw error;
     }
-
-    return data || [];
   }
 
   static async getContextSites(contextId: string): Promise<DatabaseSite[]> {
@@ -87,32 +144,79 @@ export class ContextService {
   }
 
   static async deleteFile(fileId: string): Promise<void> {
-    const { error } = await supabase
-      .from('files')
-      .delete()
-      .eq('id', fileId);
+    try {
+      // First, get the file details to access the storage path
+      const { data: fileData, error: fetchError } = await supabase
+        .from('files')
+        .select('path')
+        .eq('id', fileId)
+        .single();
 
-    if (error) {
-      throw new Error(`Failed to delete file: ${error.message}`);
+      if (fetchError) {
+        throw new Error(`Failed to fetch file details: ${fetchError.message}`);
+      }
+
+      // Delete from storage if path exists
+      if (fileData?.path) {
+        const { error: storageError } = await supabase.storage
+          .from('files')
+          .remove([fileData.path]);
+
+        if (storageError) {
+          console.warn(`Failed to delete file from storage: ${storageError.message}`);
+          // Continue with database deletion even if storage deletion fails
+        }
+      }
+
+      // Delete from database
+      const { error: deleteError } = await supabase
+        .from('files')
+        .delete()
+        .eq('id', fileId);
+
+      if (deleteError) {
+        throw new Error(`Failed to delete file from database: ${deleteError.message}`);
+      }
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      throw error;
     }
   }
 
   static async uploadFile(file: File, contextId: string): Promise<string> {
-    // Generate a unique file path
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const filePath = `contexts/${contextId}/${fileName}`;
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      const userId = user.user?.id;
+      
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
+      
+      // Generate file path without timestamp - will fail if file exists
+      const filePath = `${userId}/contexts/${contextId}/${file.name}`;
 
-    // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
-      .from('files')
-      .upload(filePath, file);
+      // Upload to Supabase Storage
+      const { error } = await supabase.storage
+        .from('files')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
 
-    if (error) {
-      throw new Error(`Failed to upload file: ${error.message}`);
+      if (error) {
+        console.error('Failed to upload file to storage:', error);
+        // Provide more specific error messages for common cases
+        if (error.message.includes('already exists') || error.message.includes('duplicate')) {
+          throw new Error(`File "${file.name}" already exists in this context`);
+        }
+        throw new Error(`Upload failed: ${error.message}`);
+      }
+
+      return filePath;
+    } catch (error) {
+      console.error('Upload file error:', error);
+      throw error;
     }
-
-    return filePath;
   }
 
   static async getFileUrl(path: string): Promise<string> {

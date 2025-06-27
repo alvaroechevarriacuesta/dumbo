@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Upload, File, Globe, Trash2, Download, Edit2, Check } from 'lucide-react';
+import toast from 'react-hot-toast';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import LoadingSpinner from '../ui/LoadingSpinner';
@@ -14,13 +15,6 @@ interface ContextInfoModalProps {
   contextName: string;
 }
 
-interface FileUpload {
-  file: File;
-  name: string;
-  progress: number;
-  error?: string;
-}
-
 const ContextInfoModal: React.FC<ContextInfoModalProps> = ({ 
   isOpen, 
   onClose, 
@@ -31,7 +25,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
   const [sites, setSites] = useState<DatabaseSite[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [uploads, setUploads] = useState<FileUpload[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -72,55 +66,54 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
   const handleFileSelect = (selectedFiles: FileList | null) => {
     if (!selectedFiles) return;
 
-    const newUploads: FileUpload[] = Array.from(selectedFiles).map(file => ({
-      file,
-      name: file.name,
-      progress: 0,
-    }));
-
-    setUploads(prev => [...prev, ...newUploads]);
-    processUploads(newUploads);
+    const files = Array.from(selectedFiles);
+    processUploads(files);
   };
 
-  const processUploads = async (uploadsToProcess: FileUpload[]) => {
-    for (const upload of uploadsToProcess) {
+  const processUploads = async (files: File[]) => {
+    if (isUploading) return;
+    
+    setIsUploading(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const file of files) {
       try {
-        // Update progress
-        setUploads(prev => prev.map(u => 
-          u === upload ? { ...u, progress: 50 } : u
-        ));
+        // Upload file to storage first
+        const filePath = await ContextService.uploadFile(file, contextId);
 
-        // Upload file to storage
-        const filePath = await ContextService.uploadFile(upload.file, contextId);
-
-        // Create file record in database
+        // Only create database record if upload was successful
         await ContextService.createFile({
-          name: upload.name,
+          name: file.name,
           context_id: contextId,
-          size: upload.file.size,
-          type: upload.file.type,
+          size: file.size,
+          type: file.type,
           path: filePath,
         });
 
-        // Update progress to complete
-        setUploads(prev => prev.map(u => 
-          u === upload ? { ...u, progress: 100 } : u
-        ));
-
-        // Reload files after successful upload
-        await loadContextData();
-
-        // Remove completed upload after a delay
-        setTimeout(() => {
-          setUploads(prev => prev.filter(u => u !== upload));
-        }, 2000);
+        successCount++;
 
       } catch (err) {
+        console.error(`Failed to upload ${file.name}:`, err);
         const errorMessage = err instanceof Error ? err.message : 'Upload failed';
-        setUploads(prev => prev.map(u => 
-          u === upload ? { ...u, error: errorMessage, progress: 0 } : u
-        ));
+        toast.error(`Failed to upload ${file.name}: ${errorMessage}`);
+        failCount++;
       }
+    }
+
+    setIsUploading(false);
+
+    // Show success/failure summary
+    if (successCount > 0) {
+      toast.success(`Successfully uploaded ${successCount} file${successCount > 1 ? 's' : ''}`);
+      // Reload files after successful uploads
+      await loadContextData();
+    }
+
+    if (failCount > 0 && successCount === 0) {
+      toast.error(`Failed to upload ${failCount} file${failCount > 1 ? 's' : ''}`);
+    } else if (failCount > 0) {
+      toast.error(`${failCount} file${failCount > 1 ? 's' : ''} failed to upload`);
     }
   };
 
@@ -144,9 +137,11 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
     try {
       await ContextService.deleteFile(fileId);
       setFiles(prev => prev.filter(f => f.id !== fileId));
+      toast.success('File deleted successfully');
     } catch (err) {
+      console.error('Failed to delete file:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete file';
-      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -155,9 +150,11 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
       await deleteContext(contextId);
       setShowDeleteConfirm(false);
       onClose();
+      toast.success('Context deleted successfully');
     } catch (err) {
+      console.error('Failed to delete context:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete context';
-      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -174,9 +171,11 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
       // await refreshContexts();
       setIsEditing(false);
       console.log('Context rename not yet implemented');
+      toast.success('Context updated successfully');
     } catch (err) {
+      console.error('Failed to update context:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to update context';
-      setError(errorMessage);
+      toast.error(errorMessage);
       setEditedName(contextName);
       setIsEditing(false);
     }
@@ -391,38 +390,6 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
                 )}
               </div>
 
-              {/* Upload Progress */}
-              {uploads.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-secondary-900 dark:text-white">
-                    Uploading...
-                  </h4>
-                  {uploads.map((upload, index) => (
-                    <div key={index} className="p-3 bg-secondary-50 dark:bg-secondary-800 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-secondary-900 dark:text-white">
-                          {upload.name}
-                        </span>
-                        <span className="text-xs text-secondary-500">
-                          {upload.progress}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-secondary-200 dark:bg-secondary-700 rounded-full h-2">
-                        <div
-                          className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${upload.progress}%` }}
-                        />
-                      </div>
-                      {upload.error && (
-                        <p className="text-xs text-error-600 dark:text-error-400 mt-1">
-                          {upload.error}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
               {/* File Upload Area - Moved to bottom */}
               <div
                 className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
@@ -435,22 +402,34 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
                 onDrop={handleDrop}
               >
                 <Upload className="h-8 w-8 mx-auto mb-2 text-secondary-400" />
-                <p className="text-secondary-600 dark:text-secondary-400 mb-2">
-                  Drag and drop files here, or click to select
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Choose Files
-                </Button>
+                {isUploading ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <LoadingSpinner size="sm" />
+                    <p className="text-secondary-600 dark:text-secondary-400">
+                      Uploading files...
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-secondary-600 dark:text-secondary-400 mb-2">
+                      Drag and drop files here, or click to select
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Choose Files
+                    </Button>
+                  </>
+                )}
                 <input
                   ref={fileInputRef}
                   type="file"
                   multiple
                   className="hidden"
                   onChange={(e) => handleFileSelect(e.target.files)}
+                  disabled={isUploading}
                 />
               </div>
 
