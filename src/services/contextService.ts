@@ -157,9 +157,8 @@ export class ContextService {
         throw new Error('User not authenticated');
       }
       
-      // Generate a unique file path with timestamp to avoid conflicts
-      const timestamp = Date.now();
-      const filePath = `${userId}/contexts/${contextId}/${timestamp}-${file.name}`;
+      // Generate file path without timestamp - will fail if file exists
+      const filePath = `${userId}/contexts/${contextId}/${file.name}`;
 
       // Upload to Supabase Storage
       const { error } = await supabase.storage
@@ -171,7 +170,11 @@ export class ContextService {
 
       if (error) {
         console.error('Failed to upload file to storage:', error);
-        throw new Error(`Storage upload failed: ${error.message}`);
+        // Provide more specific error messages for common cases
+        if (error.message.includes('already exists') || error.message.includes('duplicate')) {
+          throw new Error(`File "${file.name}" already exists in this context`);
+        }
+        throw new Error(`Upload failed: ${error.message}`);
       }
 
       return filePath;
