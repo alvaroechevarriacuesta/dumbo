@@ -146,7 +146,7 @@ export class ChunkService {
           },
           similarity,
         });
-      } catch (error) {
+      } catch {
         continue;
       }
     }
@@ -197,7 +197,7 @@ export class ChunkService {
         const validValues = values.filter(val => !isNaN(val));
         
         return validValues;
-      } catch (error) {
+      } catch {
         return [];
       }
     }

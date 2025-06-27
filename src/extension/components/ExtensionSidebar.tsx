@@ -1,18 +1,20 @@
 import React from 'react';
 import { X, User, Plus, Info, Check } from 'lucide-react';
 import { useSidebar } from '../../contexts/SidebarContext';
-import { useAuth } from '../../contexts/AuthContext';
-import { useChat } from '../../contexts/ChatContext';
-import Button from '../ui/Button';
-import LoadingSpinner from '../ui/LoadingSpinner';
-import ContextInfoModal from '../chat/ContextInfoModal';
+import { useExtensionChat } from '../hooks/useExtensionChat';
+import { extensionSupabase } from '../../lib/extension-supabase';
+import Button from '../../components/ui/Button';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { useState, useEffect } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import ExtensionContextInfoModal from './ExtensionContextInfoModal';
 
-const Sidebar: React.FC = () => {
-  const [isAddingContext, setIsAddingContext] = React.useState(false);
-  const [newContextName, setNewContextName] = React.useState('');
-  const [selectedContextInfo, setSelectedContextInfo] = React.useState<{id: string, name: string} | null>(null);
+const ExtensionSidebar: React.FC = () => {
+  const [isAddingContext, setIsAddingContext] = useState(false);
+  const [newContextName, setNewContextName] = useState('');
+  const [selectedContextInfo, setSelectedContextInfo] = useState<{id: string, name: string} | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const { close } = useSidebar();
-  const { user } = useAuth();
   const { 
     activeContextId, 
     selectContext, 
@@ -21,7 +23,21 @@ const Sidebar: React.FC = () => {
     error, 
     refreshContexts,
     addContext
-  } = useChat();
+  } = useExtensionChat();
+
+  useEffect(() => {
+    // Get current session
+    extensionSupabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = extensionSupabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleShowContextInfo = (contextId: string, contextName: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -54,13 +70,21 @@ const Sidebar: React.FC = () => {
     setIsAddingContext(false);
   };
 
+  const handleLogout = async () => {
+    try {
+      await extensionSupabase.auth.signOut();
+    } catch (error) {
+      console.error('Failed to logout:', error);
+    }
+  };
+
   return (
     <>
       <div className="w-80 h-full bg-white dark:bg-secondary-800 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 min-h-[57px] border-b border-secondary-200 dark:border-secondary-700">
           <h2 className="text-lg font-semibold text-secondary-900 dark:text-white">
-            Dumbo
+            Extendo Dumbo
           </h2>
           <Button
             variant="ghost"
@@ -76,26 +100,26 @@ const Sidebar: React.FC = () => {
         <div className="p-4 border-b border-secondary-200 dark:border-secondary-700">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary-200 dark:bg-secondary-700">
-              {user?.avatar ? (
-                <img
-                  src={user.avatar}
-                  alt={user.username}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <User className="h-6 w-6 text-secondary-500" />
-                </div>
-              )}
+              <div className="w-full h-full flex items-center justify-center">
+                <User className="h-6 w-6 text-secondary-500" />
+              </div>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-secondary-900 dark:text-white truncate">
-                {user?.username}
+                {session?.user?.email?.split('@')[0] || 'User'}
               </p>
               <p className="text-xs text-secondary-500 dark:text-secondary-400 truncate">
-                {user?.email}
+                {session?.user?.email || 'Loading...'}
               </p>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="p-1 text-error-600 hover:text-error-700 hover:bg-error-50 dark:text-error-400 dark:hover:text-error-300 dark:hover:bg-error-900/20"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
@@ -132,53 +156,18 @@ const Sidebar: React.FC = () => {
 
           {/* Empty State */}
           {!isLoading && !error && contexts.length === 0 && (
-            <div className="flex-1 flex flex-col p-4">
-              <div className="text-center mb-6">
+            <div className="flex-1 flex items-center justify-center p-4">
+              <div className="text-center">
                 <p className="text-secondary-600 dark:text-secondary-400 mb-4">
                   No contexts yet
                 </p>
-                <p className="text-sm text-secondary-500 dark:text-secondary-400">
-                  Create your first context to start having intelligent conversations with your AI assistant.
-                </p>
-              </div>
-              
-              {/* Add Context Input */}
-              <div className="flex-1 flex flex-col justify-center">
-                {isAddingContext ? (
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={newContextName}
-                      onChange={(e) => setNewContextName(e.target.value)}
-                      placeholder="Context name..."
-                      className="flex-1 px-3 py-2 text-sm border border-secondary-300 dark:border-secondary-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-secondary-800 text-secondary-900 dark:text-white"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleSaveContext();
-                        } else if (e.key === 'Escape') {
-                          handleCancelAdd();
-                        }
-                      }}
-                    />
-                    <Button
-                      onClick={handleSaveContext}
-                      size="sm"
-                      className="p-2"
-                      disabled={!newContextName.trim()}
-                    >
-                      <Check className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    onClick={handleAddContext}
-                    className="w-full"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Your First Context
-                  </Button>
-                )}
+                <Button
+                  onClick={handleAddContext}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Your First Context
+                </Button>
               </div>
             </div>
           )}
@@ -264,11 +253,11 @@ const Sidebar: React.FC = () => {
                           {/* Info Button */}
                           <div className="flex items-center justify-center">
                             <button
-                            onClick={(e) => handleShowContextInfo(context.id, context.name, e)}
+                              onClick={(e) => handleShowContextInfo(context.id, context.name, e)}
                               className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-600 dark:text-secondary-400"
-                          >
+                            >
                               <Info className="h-4 w-4" />
-                          </button>
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -283,15 +272,15 @@ const Sidebar: React.FC = () => {
 
       {/* Context Info Modal */}
       {selectedContextInfo && (
-        <ContextInfoModal
-          isOpen={!!selectedContextInfo}
-          onClose={() => setSelectedContextInfo(null)}
+        <ExtensionContextInfoModal
           contextId={selectedContextInfo.id}
           contextName={selectedContextInfo.name}
+          isOpen={!!selectedContextInfo}
+          onClose={() => setSelectedContextInfo(null)}
         />
       )}
     </>
   );
 };
 
-export default Sidebar;
+export default ExtensionSidebar; 

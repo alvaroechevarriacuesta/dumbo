@@ -60,14 +60,48 @@ const initialState: AuthState = {
   error: null,
 };
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const ExtensionAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   useEffect(() => {
-    // Check for existing session
+    // Check for existing session from Chrome storage first, then Supabase
     const checkSession = async () => {
       try {
         dispatch({ type: 'AUTH_START' });
+        
+        // First try to get auth data from Chrome storage
+        const storedUser = await chromeStorage.get('user');
+        const storedAuthToken = await chromeStorage.get('authToken');
+        
+        if (storedUser && storedAuthToken) {
+          // Set the session in Supabase with stored token
+          const { data: { session }, error } = await supabase.auth.setSession({
+            access_token: storedAuthToken as string,
+            refresh_token: (await chromeStorage.get('refreshToken')) as string || '',
+          });
+          
+          if (error) {
+            console.error('Error setting session from storage:', error);
+            // Clear invalid stored data
+            await chromeStorage.clear();
+            dispatch({ type: 'AUTH_ERROR', payload: 'Invalid stored session' });
+            return;
+          }
+
+          if (session?.user) {
+            const user: User = {
+              id: session.user.id,
+              email: session.user.email!,
+              username: session.user.user_metadata?.username || session.user.email!.split('@')[0],
+              avatar: session.user.user_metadata?.avatar_url,
+              createdAt: new Date(session.user.created_at),
+            };
+            dispatch({ type: 'AUTH_SUCCESS', payload: user });
+            return;
+          }
+        }
+
+        // Fallback to regular Supabase session check
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -85,6 +119,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             createdAt: new Date(session.user.created_at),
           };
           dispatch({ type: 'AUTH_SUCCESS', payload: user });
+          
+          // Save to Chrome storage
+          await chromeStorage.set('user', user);
+          await chromeStorage.set('authToken', session.access_token);
+          await chromeStorage.set('refreshToken', session.refresh_token);
         } else {
           dispatch({ type: 'AUTH_ERROR', payload: 'No active session' });
         }
@@ -109,7 +148,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           };
           dispatch({ type: 'AUTH_SUCCESS', payload: user });
           
-          // Save to Chrome storage for extension
+          // Save to Chrome storage
           await chromeStorage.set('user', user);
           await chromeStorage.set('authToken', session.access_token);
           await chromeStorage.set('refreshToken', session.refresh_token);
@@ -141,7 +180,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw error;
       }
 
-      if (data.user) {
+      if (data.user && data.session) {
         const user: User = {
           id: data.user.id,
           email: data.user.email!,
@@ -151,12 +190,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
         dispatch({ type: 'AUTH_SUCCESS', payload: user });
         
-        // Save to Chrome storage for extension
-        if (data.session) {
-          await chromeStorage.set('user', user);
-          await chromeStorage.set('authToken', data.session.access_token);
-          await chromeStorage.set('refreshToken', data.session.refresh_token);
-        }
+        // Save to Chrome storage
+        await chromeStorage.set('user', user);
+        await chromeStorage.set('authToken', data.session.access_token);
+        await chromeStorage.set('refreshToken', data.session.refresh_token);
       }
     } catch (error: unknown) {
       dispatch({ type: 'AUTH_ERROR', payload: error instanceof Error ? error.message : 'Login failed' });
@@ -194,7 +231,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           };
           dispatch({ type: 'AUTH_SUCCESS', payload: user });
           
-          // Save to Chrome storage for extension
+          // Save to Chrome storage
           await chromeStorage.set('user', user);
           await chromeStorage.set('authToken', data.session.access_token);
           await chromeStorage.set('refreshToken', data.session.refresh_token);
@@ -227,16 +264,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ ...state, login, signup, logout }}>
+    <AuthContext.Provider
+      value={{
+        ...state,
+        login,
+        signup,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = (): AuthContextType => {
+export const useExtensionAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useExtensionAuth must be used within an ExtensionAuthProvider');
   }
   return context;
-};
+}; 

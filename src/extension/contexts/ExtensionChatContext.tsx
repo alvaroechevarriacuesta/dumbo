@@ -1,12 +1,13 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useReducer, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useAuth } from './AuthContext';
-import { ContextService } from '../services/contextService';
-import { MessageService } from '../services/messageService';
-import { getOpenAIService } from '../services/openaiService';
+import type { Session } from '@supabase/supabase-js';
+import { extensionSupabase } from '../../lib/extension-supabase';
+import { getOpenAIService } from '../../services/openaiService';
 import toast from 'react-hot-toast';
-import type { Message, ChatContext as ChatContextType } from '../types/chat';
-import type { DatabaseContext } from '../types/database';
+import type { Message, ChatContext as ChatContextType } from '../../types/chat';
+import type { DatabaseContext } from '../../types/database';
+import { ExtensionContextService } from '../services/ExtensionContextService';
+import { ExtensionMessageService } from '../services/ExtensionMessageService';
 
 interface ChatState {
   messages: Record<string, Message[]>; // contextId -> messages
@@ -31,7 +32,11 @@ interface ChatContextValue extends ChatState {
   loadMoreMessages: (contextId: string) => Promise<void>;
 }
 
-const ChatContext = createContext<ChatContextValue | undefined>(undefined);
+export type { ChatContextValue };
+
+const ExtensionChatContext = createContext<ChatContextValue | undefined>(undefined);
+
+export { ExtensionChatContext };
 
 type ChatAction =
   | { type: 'SELECT_CONTEXT'; payload: string }
@@ -122,7 +127,8 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
     case 'REMOVE_CONTEXT': {
       const filteredContexts = state.contexts.filter(ctx => ctx.id !== action.payload);
       const newActiveId = state.activeContextId === action.payload ? null : state.activeContextId;
-      const { [action.payload]: _, ...remainingMessages } = state.messages;
+      const remainingMessages = { ...state.messages };
+      delete remainingMessages[action.payload];
       return {
         ...state,
         contexts: filteredContexts,
@@ -157,9 +163,22 @@ const initialState: ChatState = {
   streamingMessageId: null,
 };
 
-export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const ExtensionChatProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(chatReducer, initialState);
-  const { user, isAuthenticated } = useAuth();
+  const [session, setSession] = useState<Session | null>(null);
+
+  // Get current session
+  useEffect(() => {
+    extensionSupabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const { data: { subscription } } = extensionSupabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Convert database context to chat context
   const convertToContext = (dbContext: DatabaseContext): ChatContextType => ({
@@ -171,10 +190,10 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Load contexts from database when user is authenticated
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (session?.user) {
       refreshContexts();
     }
-  }, [isAuthenticated, user]);
+  }, [session]);
 
   // Load messages when context is selected
   useEffect(() => {
@@ -184,19 +203,18 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [state.activeContextId]);
 
   const refreshContexts = async (): Promise<void> => {
-    if (!user) return;
+    if (!session?.user) return;
 
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const dbContexts = await ContextService.getUserContexts(user.id);
+      const dbContexts = await ExtensionContextService.getUserContexts(session.user.id);
       const contexts = dbContexts.map(convertToContext);
       dispatch({ type: 'SET_CONTEXTS', payload: contexts });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load contexts';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
-      console.error('Failed to refresh contexts:', error);
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
@@ -209,7 +227,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const loadMessages = async (contextId: string): Promise<void> => {
     try {
       // Load the latest 10 messages for initial view
-      const { messages, totalCount } = await MessageService.getLatestMessages(contextId, 10);
+      const { messages, totalCount } = await ExtensionMessageService.getLatestMessages(contextId, 10);
       const hasMore = totalCount > 10;
       const offset = Math.max(0, totalCount - 10);
       
@@ -232,7 +250,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const newOffset = Math.max(0, pagination.offset - 10);
       const limit = pagination.offset - newOffset;
       
-      const { messages, hasMore } = await MessageService.getContextMessages(
+      const { messages } = await ExtensionMessageService.getContextMessages(
         contextId, 
         limit,
         newOffset
@@ -254,6 +272,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       dispatch({ type: 'SET_LOADING_MORE', payload: false });
     }
   };
+
   const sendMessage = async (content: string): Promise<void> => {
     if (!state.activeContextId) {
       toast.error('Please select a context first');
@@ -264,7 +283,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     try {
       // Save user message to database
-      const userMessage = await MessageService.createMessage(
+      const userMessage = await ExtensionMessageService.createMessage(
         state.activeContextId,
         'user',
         content
@@ -276,7 +295,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
 
       // Create initial assistant message
-      assistantMessage = await MessageService.createMessage(
+      assistantMessage = await ExtensionMessageService.createMessage(
         state.activeContextId,
         'assistant',
         ''
@@ -319,16 +338,16 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       // Save the final response to the database
-      await MessageService.updateMessage(assistantMessage.id, fullResponse);
+      await ExtensionMessageService.updateMessage(assistantMessage.id, fullResponse);
 
-    } catch (error) {
+    } catch {
       toast.error('Failed to send message');
       
       // If there was an error, remove the incomplete assistant message
       if (assistantMessage) {
         try {
-          await MessageService.deleteMessage(assistantMessage.id);
-        } catch (deleteError) {
+          await ExtensionMessageService.deleteMessage(assistantMessage.id);
+        } catch {
           // Silently fail if we can't delete the incomplete message
         }
       }
@@ -338,10 +357,10 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const addContext = async (contextData: { name: string; description?: string }): Promise<string> => {
-    if (!user) throw new Error('User not authenticated');
+    if (!session?.user) throw new Error('User not authenticated');
 
     try {
-      const dbContext = await ContextService.createContext(contextData);
+      const dbContext = await ExtensionContextService.createContext(contextData);
       const newContext = convertToContext(dbContext);
       dispatch({ type: 'ADD_CONTEXT', payload: newContext });
       
@@ -357,7 +376,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const deleteContext = async (contextId: string): Promise<void> => {
     try {
-      await ContextService.deleteContext(contextId);
+      await ExtensionContextService.deleteContext(contextId);
       dispatch({ type: 'REMOVE_CONTEXT', payload: contextId });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete context';
@@ -371,7 +390,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <ChatContext.Provider
+    <ExtensionChatContext.Provider
       value={{
         ...state,
         selectContext,
@@ -385,14 +404,6 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }}
     >
       {children}
-    </ChatContext.Provider>
+    </ExtensionChatContext.Provider>
   );
-};
-
-export const useChat = (): ChatContextValue => {
-  const context = useContext(ChatContext);
-  if (context === undefined) {
-    throw new Error('useChat must be used within a ChatProvider');
-  }
-  return context;
-};
+}; 
