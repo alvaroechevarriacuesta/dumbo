@@ -22,7 +22,7 @@ export class OpenAIService {
   async generateEmbedding(text: string): Promise<number[]> {
     try {
       const response = await this.client.embeddings.create({
-        model: 'text-embedding-3-small',
+        model: 'text-embedding-3-large',
         input: text,
       });
 
