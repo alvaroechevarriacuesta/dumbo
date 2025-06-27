@@ -97,22 +97,31 @@ const ChatInterface: React.FC = () => {
                               if (inline) {
                                 return (
                                   <code
-                                    className="px-2 py-1 rounded bg-secondary-100 dark:bg-secondary-800 text-primary-600 dark:text-primary-400 text-sm font-mono"
+                                    className="px-2 py-1 rounded-md bg-secondary-100 dark:bg-secondary-800 text-primary-600 dark:text-primary-400 text-sm font-mono border border-secondary-200 dark:border-secondary-700"
                                     {...props}
                                   >
                                     {children}
                                   </code>
                                 );
                               }
+                              const match = /language-(\w+)/.exec(className || '');
+                              const language = match ? match[1] : '';
                               return (
-                                <code className={className} {...props}>
-                                  {children}
-                                </code>
+                                <div className="relative">
+                                  {language && (
+                                    <div className="absolute top-0 right-0 px-3 py-1 text-xs text-secondary-500 dark:text-secondary-400 bg-secondary-50 dark:bg-secondary-900 border-b border-l border-secondary-200 dark:border-secondary-700 rounded-bl-md font-mono">
+                                      {language}
+                                    </div>
+                                  )}
+                                  <code className={className} {...props}>
+                                    {children}
+                                  </code>
+                                </div>
                               );
                             },
                             pre: ({ children, ...props }) => (
                               <pre
-                                className="bg-secondary-50 dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-6 overflow-x-auto mb-6"
+                                className="bg-secondary-50 dark:bg-secondary-800 border border-secondary-200 dark:border-secondary-700 rounded-lg p-6 overflow-x-auto mb-6 relative"
                                 {...props}
                               >
                                 {children}
@@ -124,34 +133,79 @@ const ChatInterface: React.FC = () => {
                               </p>
                             ),
                             ul: ({ children, ...props }) => (
-                              <ul className="mb-6 space-y-2" {...props}>
+                              <ul className="mb-6 space-y-2 list-disc list-inside" {...props}>
                                 {children}
                               </ul>
                             ),
                             ol: ({ children, ...props }) => (
-                              <ol className="mb-6 space-y-2" {...props}>
+                              <ol className="mb-6 space-y-2 list-decimal list-inside" {...props}>
                                 {children}
                               </ol>
                             ),
+                            li: ({ children, ...props }) => (
+                              <li className="mb-2 leading-relaxed" {...props}>
+                                {children}
+                              </li>
+                            ),
                             h1: ({ children, ...props }) => (
-                              <h1 className="mb-6 mt-8 first:mt-0" {...props}>
+                              <h1 className="mb-6 mt-8 first:mt-0 text-3xl font-bold text-secondary-900 dark:text-white border-b border-secondary-200 dark:border-secondary-700 pb-2" {...props}>
                                 {children}
                               </h1>
                             ),
                             h2: ({ children, ...props }) => (
-                              <h2 className="mb-6 mt-8 first:mt-0" {...props}>
+                              <h2 className="mb-6 mt-8 first:mt-0 text-2xl font-semibold text-secondary-900 dark:text-white" {...props}>
                                 {children}
                               </h2>
                             ),
                             h3: ({ children, ...props }) => (
-                              <h3 className="mb-4 mt-6 first:mt-0" {...props}>
+                              <h3 className="mb-4 mt-6 first:mt-0 text-xl font-semibold text-secondary-900 dark:text-white" {...props}>
                                 {children}
                               </h3>
                             ),
+                            h4: ({ children, ...props }) => (
+                              <h4 className="mb-3 mt-4 first:mt-0 text-lg font-medium text-secondary-900 dark:text-white" {...props}>
+                                {children}
+                              </h4>
+                            ),
+                            h5: ({ children, ...props }) => (
+                              <h5 className="mb-3 mt-4 first:mt-0 text-base font-medium text-secondary-900 dark:text-white" {...props}>
+                                {children}
+                              </h5>
+                            ),
+                            h6: ({ children, ...props }) => (
+                              <h6 className="mb-3 mt-4 first:mt-0 text-sm font-medium text-secondary-900 dark:text-white" {...props}>
+                                {children}
+                              </h6>
+                            ),
                             blockquote: ({ children, ...props }) => (
-                              <blockquote className="mb-6 border-l-4 border-primary-300 dark:border-primary-600 pl-6 italic" {...props}>
+                              <blockquote className="mb-6 border-l-4 border-primary-300 dark:border-primary-600 pl-6 py-2 bg-primary-50 dark:bg-primary-900/20 rounded-r-lg italic text-secondary-700 dark:text-secondary-300" {...props}>
                                 {children}
                               </blockquote>
+                            ),
+                            table: ({ children, ...props }) => (
+                              <div className="mb-6 overflow-x-auto">
+                                <table className="min-w-full border border-secondary-200 dark:border-secondary-700 rounded-lg" {...props}>
+                                  {children}
+                                </table>
+                              </div>
+                            ),
+                            thead: ({ children, ...props }) => (
+                              <thead className="bg-secondary-100 dark:bg-secondary-800" {...props}>
+                                {children}
+                              </thead>
+                            ),
+                            th: ({ children, ...props }) => (
+                              <th className="px-4 py-3 text-left text-sm font-semibold text-secondary-900 dark:text-white border-b border-secondary-200 dark:border-secondary-700" {...props}>
+                                {children}
+                              </th>
+                            ),
+                            td: ({ children, ...props }) => (
+                              <td className="px-4 py-3 text-sm text-secondary-700 dark:text-secondary-300 border-b border-secondary-200 dark:border-secondary-700" {...props}>
+                                {children}
+                              </td>
+                            ),
+                            hr: ({ ...props }) => (
+                              <hr className="my-8 border-secondary-200 dark:border-secondary-700" {...props} />
                             ),
                           }}
                         >
@@ -166,12 +220,13 @@ const ChatInterface: React.FC = () => {
               {isStreaming && (
                 <div className="group">
                   <div className="mr-auto max-w-none">
-                    <div className="flex items-center space-x-3 py-4">
+                    <div className="flex items-center space-x-3 py-6">
                       <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-secondary-400 rounded-full animate-pulse"></div>
-                        <div className="w-2 h-2 bg-secondary-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                        <div className="w-2 h-2 bg-secondary-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                        <div className="w-3 h-3 bg-primary-400 rounded-full animate-bounce"></div>
+                        <div className="w-3 h-3 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-3 h-3 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                       </div>
+                      <span className="text-sm text-secondary-500 dark:text-secondary-400">AI is thinking...</span>
                     </div>
                   </div>
                 </div>
@@ -191,7 +246,7 @@ const ChatInterface: React.FC = () => {
                 Start a conversation
               </h3>
               <p className="text-secondary-600 dark:text-secondary-400 mb-6 leading-relaxed">
-                Ask me anything about this context. I'm here to help with your questions and tasks.
+                Ask me anything about this context. I'll provide detailed, comprehensive responses to help with your questions and tasks.
               </p>
             </div>
           </div>

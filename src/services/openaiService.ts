@@ -21,9 +21,17 @@ export class OpenAIService {
     messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>
   ): AsyncGenerator<string, void, unknown> {
     try {
+      // Add system prompt at the beginning
+      const systemPrompt = {
+        role: 'system' as const,
+        content: 'Go into as much detail as possible. Provide comprehensive, thorough responses with examples, explanations, and actionable insights. Use markdown formatting to structure your responses clearly with headers, lists, code blocks, and other formatting as appropriate.'
+      };
+
+      const messagesWithSystem = [systemPrompt, ...messages];
+
       const stream = await this.client.chat.completions.create({
         model: this.model,
-        messages,
+        messages: messagesWithSystem,
         stream: true,
         temperature: 0.7,
         max_tokens: 2000,
@@ -45,9 +53,17 @@ export class OpenAIService {
     messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>
   ): Promise<string> {
     try {
+      // Add system prompt at the beginning
+      const systemPrompt = {
+        role: 'system' as const,
+        content: 'Go into as much detail as possible. Provide comprehensive, thorough responses with examples, explanations, and actionable insights. Use markdown formatting to structure your responses clearly with headers, lists, code blocks, and other formatting as appropriate.'
+      };
+
+      const messagesWithSystem = [systemPrompt, ...messages];
+
       const response = await this.client.chat.completions.create({
         model: this.model,
-        messages,
+        messages: messagesWithSystem,
         temperature: 0.7,
         max_tokens: 2000,
       });
