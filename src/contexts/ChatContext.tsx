@@ -262,6 +262,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
 
+    let assistantMessage: Message | undefined;
+
     try {
       // Save user message to database
       const userMessage = await MessageService.createMessage(
@@ -276,7 +278,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
 
       // Create initial assistant message
-      const assistantMessage = await MessageService.createMessage(
+      assistantMessage = await MessageService.createMessage(
         state.activeContextId,
         'assistant',
         ''
@@ -322,7 +324,6 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await MessageService.updateMessage(assistantMessage.id, fullResponse);
 
     } catch (error) {
-      console.error('Failed to send message:', error);
       toast.error('Failed to send message');
       
       // If there was an error, remove the incomplete assistant message
@@ -330,7 +331,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
           await MessageService.deleteMessage(assistantMessage.id);
         } catch (deleteError) {
-          console.error('Failed to delete incomplete message:', deleteError);
+          // Silently fail if we can't delete the incomplete message
         }
       }
     } finally {
