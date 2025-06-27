@@ -2,7 +2,7 @@ import React, { createContext, useContext, useReducer, useEffect, ReactNode } fr
 import { useAuth } from './AuthContext';
 import { ContextService } from '../services/contextService';
 import { MessageService } from '../services/messageService';
-import { RAGService } from '../services/ragService';
+import { getOpenAIService } from '../services/openaiService';
 import toast from 'react-hot-toast';
 import type { Message, ChatContext as ChatContextType } from '../types/chat';
 import type { DatabaseContext } from '../types/database';
@@ -24,7 +24,6 @@ interface ChatState {
   isLoadingMore: boolean;
   error: string | null;
   streamingMessageId: string | null;
-  ragContext: Record<string, any>; // Store RAG context for active conversations
 }
 
 interface ChatContextValue extends ChatState {
@@ -36,7 +35,6 @@ interface ChatContextValue extends ChatState {
   refreshContexts: () => Promise<void>;
   loadMessages: (contextId: string) => Promise<void>;
   loadMoreMessages: (contextId: string) => Promise<void>;
-  getRagContext: (contextId: string) => any;
 }
 
 const ChatContext = createContext<ChatContextValue | undefined>(undefined);
@@ -55,8 +53,7 @@ type ChatAction =
   | { type: 'STOP_STREAMING' }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_LOADING_MORE'; payload: boolean }
-  | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'SET_RAG_CONTEXT'; payload: { contextId: string; ragContext: any } };
+  | { type: 'SET_ERROR'; payload: string | null };
 
 const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
   switch (action.type) {
@@ -145,14 +142,6 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
       return { ...state, isLoadingMore: action.payload };
     case 'SET_ERROR':
       return { ...state, error: action.payload };
-    case 'SET_RAG_CONTEXT':
-      return {
-        ...state,
-        ragContext: {
-          ...state.ragContext,
-          [action.payload.contextId]: action.payload.ragContext,
-        },
-      };
     default:
       return state;
   }
@@ -168,7 +157,6 @@ const initialState: ChatState = {
   isLoadingMore: false,
   error: null,
   streamingMessageId: null,
-  ragContext: {},
 };
 
 export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -302,19 +290,21 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Start streaming
       dispatch({ type: 'START_STREAMING', payload: assistantMessage.id });
 
-      // Get conversation history for RAG
+      // Get conversation history for OpenAI
       const contextMessages = state.messages[state.activeContextId] || [];
       const conversationHistory = [
         ...contextMessages.map(msg => ({
           role: msg.sender === 'user' ? 'user' as const : 'assistant' as const,
           content: msg.content,
         })),
+        { role: 'user' as const, content },
       ];
 
-      // Stream response using RAG
+      // Stream response from OpenAI with RAG context
+      const openaiService = getOpenAIService();
       let fullResponse = '';
 
-      for await (const chunk of RAGService.streamRAGResponse(content, state.activeContextId, conversationHistory)) {
+      for await (const chunk of openaiService.streamChatCompletion(conversationHistory, state.activeContextId)) {
         fullResponse += chunk;
         
         // Update the message in real-time
@@ -381,10 +371,6 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return state.messages[state.activeContextId] || [];
   };
 
-  const getRagContext = (contextId: string) => {
-    return state.ragContext[contextId] || null;
-  };
-
   return (
     <ChatContext.Provider
       value={{
@@ -397,7 +383,6 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         refreshContexts,
         loadMessages,
         loadMoreMessages,
-        getRagContext,
       }}
     >
       {children}
