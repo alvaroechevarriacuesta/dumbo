@@ -249,6 +249,24 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
       }
   };
+      // Save the final response to the database
+      await MessageService.updateMessage(assistantMessage.id, fullResponse);
+
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      toast.error('Failed to send message');
+      
+      // If there was an error, remove the incomplete assistant message
+      if (assistantMessage) {
+        try {
+          await MessageService.deleteMessage(assistantMessage.id);
+        } catch (deleteError) {
+          console.error('Failed to delete incomplete message:', deleteError);
+        }
+      }
+    } finally {
+      dispatch({ type: 'STOP_STREAMING' });
+    }
 
   const addContext = async (contextData: { name: string; description?: string }): Promise<void> => {
     if (!user) throw new Error('User not authenticated');
