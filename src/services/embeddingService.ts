@@ -77,6 +77,12 @@ export class EmbeddingService {
       const batchPromises = batch.map(async (chunk) => {
         try {
           const embedding = await openaiService.generateEmbedding(chunk.content);
+          
+          // Validate embedding dimensions
+          if (!this.validateEmbeddingDimensions(embedding, 1536)) {
+            throw new Error(`Invalid embedding dimensions: expected 1536, got ${embedding.length}`);
+          }
+          
           return {
             ...chunk,
             embedding,

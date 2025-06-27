@@ -246,6 +246,27 @@ export class ContextService {
 
   static async processFileContent(file: File, fileId: string): Promise<void> {
     try {
+      // First, get the context ID for this file to clean up any existing invalid chunks
+      const { data: fileData, error: fileError } = await supabase
+        .from('files')
+        .select('context_id')
+        .eq('id', fileId)
+        .single();
+
+      if (fileError) {
+        throw new Error(`Failed to get file context: ${fileError.message}`);
+      }
+
+      // Clean up any existing invalid chunks in this context
+      try {
+        const deletedCount = await ChunkService.cleanupInvalidChunks(fileData.context_id);
+        if (deletedCount > 0) {
+          console.log(`Cleaned up ${deletedCount} invalid chunks before processing new file`);
+        }
+      } catch (cleanupError) {
+        console.warn('Failed to cleanup invalid chunks, continuing with file processing:', cleanupError);
+      }
+
       let textContent: string;
       
       // Extract text based on file type

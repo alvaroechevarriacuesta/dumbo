@@ -19,6 +19,70 @@ export interface ChunkSearchResult {
 
 export class ChunkService {
   /**
+   * Clean up chunks with invalid embedding dimensions
+   */
+  static async cleanupInvalidChunks(contextId: string): Promise<number> {
+    console.log('ChunkService: Starting cleanup of invalid chunks for context:', contextId);
+    
+    try {
+      // Get all chunks for this context
+      const { data: fileChunks, error: fileError } = await supabase
+        .from('chunks')
+        .select(`
+          id,
+          embedding,
+          files!inner(context_id)
+        `)
+        .eq('files.context_id', contextId)
+        .not('file_id', 'is', null);
+
+      const { data: siteChunks, error: siteError } = await supabase
+        .from('chunks')
+        .select(`
+          id,
+          embedding,
+          sites!inner(context_id)
+        `)
+        .eq('sites.context_id', contextId)
+        .not('site_id', 'is', null);
+
+      if (fileError && siteError) {
+        throw new Error(`Failed to fetch chunks: ${fileError?.message || siteError?.message}`);
+      }
+
+      const allChunks = [...(fileChunks || []), ...(siteChunks || [])];
+      
+      // Find chunks with invalid dimensions
+      const invalidChunkIds = allChunks
+        .filter(chunk => !EmbeddingService.validateEmbeddingDimensions(chunk.embedding, 1536))
+        .map(chunk => chunk.id);
+
+      if (invalidChunkIds.length === 0) {
+        console.log('ChunkService: No invalid chunks found');
+        return 0;
+      }
+
+      console.log(`ChunkService: Found ${invalidChunkIds.length} chunks with invalid dimensions, deleting...`);
+
+      // Delete invalid chunks
+      const { error: deleteError } = await supabase
+        .from('chunks')
+        .delete()
+        .in('id', invalidChunkIds);
+
+      if (deleteError) {
+        throw new Error(`Failed to delete invalid chunks: ${deleteError.message}`);
+      }
+
+      console.log(`ChunkService: Successfully deleted ${invalidChunkIds.length} invalid chunks`);
+      return invalidChunkIds.length;
+    } catch (error) {
+      console.error('ChunkService: Failed to cleanup invalid chunks:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Save chunks to database
    */
   static async saveChunks(
@@ -26,6 +90,13 @@ export class ChunkService {
     fileId?: string, 
     siteId?: string
   ): Promise<DatabaseChunk[]> {
+    // Validate all embeddings before saving
+    for (const chunk of chunks) {
+      if (!EmbeddingService.validateEmbeddingDimensions(chunk.embedding, 1536)) {
+        throw new Error(`Invalid embedding dimensions: expected 1536, got ${chunk.embedding.length}`);
+      }
+    }
+    
     const chunksToInsert = chunks.map(chunk => ({
       content: chunk.content,
       embedding: chunk.embedding,
