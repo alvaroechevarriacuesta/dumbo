@@ -9,6 +9,13 @@ export default defineConfig({
     react(),
     crx({ manifest })
   ],
+  server: {
+    hmr: {
+      protocol: 'wss',
+      host: 'localhost',
+      clientPort: 5173
+    }
+  },
   build: {
     rollupOptions: {
       input: {
