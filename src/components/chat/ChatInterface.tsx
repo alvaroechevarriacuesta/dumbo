@@ -2,14 +2,34 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
-import { Send, ChevronUp } from 'lucide-react';
+import { Send, ChevronUp, Bug } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import Button from '../ui/Button';
 import WelcomeScreen from './WelcomeScreen';
+import type { DatabaseFile } from '../../types/database';
 import 'highlight.js/styles/github-dark.css';
+
+interface DebugInfo {
+  contextId?: string;
+  files?: DatabaseFile[];
+  chunks?: Array<{
+    id: string;
+    content: string;
+    file_id?: string;
+    site_id?: string;
+    metadata?: Record<string, unknown>;
+    created_at: string;
+  }>;
+  filesError?: string;
+  chunksError?: string;
+  error?: string;
+  timestamp: string;
+}
 
 const ChatInterface: React.FC = () => {
   const [message, setMessage] = useState('');
+  const [showDebug, setShowDebug] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const { 
     activeContextId, 
     getCurrentMessages, 
@@ -27,6 +47,44 @@ const ChatInterface: React.FC = () => {
   const hasMessages = messages.length > 0;
   const pagination = activeContextId ? messagesPagination[activeContextId] : null;
   const hasMoreMessages = pagination?.hasMore || false;
+
+  // Debug function to check RAG status
+  const checkRAGStatus = async () => {
+    if (!activeContextId) return;
+    
+    try {
+      const { supabase } = await import('../../lib/supabase');
+      
+      // Check files in context
+      const { data: files, error: filesError } = await supabase
+        .from('files')
+        .select('*')
+        .eq('context_id', activeContextId);
+      
+      // Check chunks for files in context
+      const { data: chunks, error: chunksError } = await supabase
+        .from('chunks')
+        .select(`
+          *,
+          files!inner(context_id)
+        `)
+        .eq('files.context_id', activeContextId);
+      
+      setDebugInfo({
+        contextId: activeContextId,
+        files: files || [],
+        chunks: chunks || [],
+        filesError: filesError?.message,
+        chunksError: chunksError?.message,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      setDebugInfo({
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -94,6 +152,75 @@ const ChatInterface: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col relative bg-white dark:bg-secondary-900">
+      {/* Debug Panel */}
+      {showDebug && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 p-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                RAG Debug Info
+              </h3>
+              <Button
+                onClick={() => setShowDebug(false)}
+                variant="outline"
+                size="sm"
+                className="text-yellow-800 dark:text-yellow-200"
+              >
+                Close
+              </Button>
+            </div>
+            {debugInfo ? (
+              <div className="text-xs space-y-2 text-yellow-700 dark:text-yellow-300">
+                <div><strong>Context ID:</strong> {debugInfo.contextId}</div>
+                <div><strong>Files:</strong> {debugInfo.files?.length || 0}</div>
+                <div><strong>Chunks:</strong> {debugInfo.chunks?.length || 0}</div>
+                {debugInfo.filesError && <div><strong>Files Error:</strong> {debugInfo.filesError}</div>}
+                {debugInfo.chunksError && <div><strong>Chunks Error:</strong> {debugInfo.chunksError}</div>}
+                {debugInfo.files && debugInfo.files.length > 0 && (
+                  <div>
+                    <strong>File Status:</strong>
+                    <ul className="ml-4 mt-1">
+                      {debugInfo.files.map((file: DatabaseFile) => (
+                        <li key={file.id}>
+                          {file.name} - {file.processing_status}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div><strong>Timestamp:</strong> {debugInfo.timestamp}</div>
+              </div>
+            ) : (
+              <div className="text-xs text-yellow-700 dark:text-yellow-300">
+                Click "Check RAG Status" to load debug info
+              </div>
+            )}
+            <div className="mt-3">
+              <Button
+                onClick={checkRAGStatus}
+                variant="outline"
+                size="sm"
+                className="text-yellow-800 dark:text-yellow-200"
+              >
+                Check RAG Status
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Debug Toggle Button */}
+      <div className="absolute top-4 right-4 z-10">
+        <Button
+          onClick={() => setShowDebug(!showDebug)}
+          variant="outline"
+          size="sm"
+          className="bg-white/80 dark:bg-secondary-800/80 backdrop-blur-sm"
+        >
+          <Bug className="w-4 h-4" />
+        </Button>
+      </div>
+
       {/* Chat Messages */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto pb-32">
         {hasMessages ? (
@@ -124,7 +251,7 @@ const ChatInterface: React.FC = () => {
             )}
             
             <div className="space-y-12">
-              {messages.map((msg, index) => (
+              {messages.map((msg) => (
                 <div key={msg.id} className="group">
                   {/* Message Content */}
                   <div className={`${msg.sender === 'user' ? 'flex justify-end' : 'mr-auto max-w-none'}`}>
