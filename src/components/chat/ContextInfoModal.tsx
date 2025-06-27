@@ -28,6 +28,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set());
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(contextName);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -106,7 +107,16 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
         // Process file content in background
         ContextService.processFileContent(file, dbFile.id).catch(error => {
           console.error(`Background processing failed for ${file.name}:`, error);
+          // Remove from processing set on error
+          setProcessingFiles(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(dbFile.id);
+            return newSet;
+          });
         });
+
+        // Add to processing set
+        setProcessingFiles(prev => new Set(prev).add(dbFile.id));
 
         successCount++;
 
@@ -127,6 +137,12 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
       setTimeout(() => {
         loadContextData();
       }, 1000);
+      
+      // Set up a listener for processing completion
+      setTimeout(() => {
+        // Clear processing state after a reasonable time
+        setProcessingFiles(new Set());
+      }, 30000); // Clear after 30 seconds max
     }
 
     if (failCount > 0 && successCount === 0) {
@@ -328,27 +344,27 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
                             <p className="text-xs text-secondary-500">
                               {formatFileSize(file.size)} • {formatDate(file.created_at)}
                             </p>
-                            {file.processing_status && (
+                            {(processingFiles.has(file.id) || file.processing_status) && (
                               <div className="flex items-center mt-1">
-                                {file.processing_status === 'pending' && (
+                                {(processingFiles.has(file.id) || file.processing_status === 'pending') && (
                                   <span className="text-xs text-warning-600 dark:text-warning-400 flex items-center">
                                     <div className="w-2 h-2 bg-warning-500 rounded-full mr-1 animate-pulse"></div>
                                     Processing...
                                   </span>
                                 )}
-                                {file.processing_status === 'processing' && (
+                                {!processingFiles.has(file.id) && file.processing_status === 'processing' && (
                                   <span className="text-xs text-primary-600 dark:text-primary-400 flex items-center">
                                     <div className="w-2 h-2 bg-primary-500 rounded-full mr-1 animate-pulse"></div>
                                     Analyzing content...
                                   </span>
                                 )}
-                                {file.processing_status === 'completed' && (
+                                {!processingFiles.has(file.id) && file.processing_status === 'completed' && (
                                   <span className="text-xs text-success-600 dark:text-success-400 flex items-center">
                                     <div className="w-2 h-2 bg-success-500 rounded-full mr-1"></div>
                                     Ready for search
                                   </span>
                                 )}
-                                {file.processing_status === 'failed' && (
+                                {!processingFiles.has(file.id) && file.processing_status === 'failed' && (
                                   <span className="text-xs text-error-600 dark:text-error-400 flex items-center">
                                     <div className="w-2 h-2 bg-error-500 rounded-full mr-1"></div>
                                     Processing failed
