@@ -423,15 +423,6 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
                     </Button>
                   </>
                 )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
-                  className={isUploading ? 'hidden' : ''}
-                >
-                  Choose Files
-                </Button>
                 <input
                   ref={fileInputRef}
                   type="file"
