@@ -82,18 +82,30 @@ export class ChunkService {
     queryEmbedding: number[],
     limit: number = 5
   ): Promise<ChunkSearchResult[]> {
-    // Get all chunks for files in this context
-    const { data: chunks, error } = await supabase
+    // Get all chunks for files and sites in this context
+    const { data: fileChunks, error: fileError } = await supabase
       .from('chunks')
       .select(`
         *,
         files!inner(context_id)
       `)
-      .eq('files.context_id', contextId);
+      .eq('files.context_id', contextId)
+      .not('file_id', 'is', null);
 
-    if (error) {
-      throw new Error(`Failed to search chunks: ${error.message}`);
+    const { data: siteChunks, error: siteError } = await supabase
+      .from('chunks')
+      .select(`
+        *,
+        sites!inner(context_id)
+      `)
+      .eq('sites.context_id', contextId)
+      .not('site_id', 'is', null);
+
+    if (fileError && siteError) {
+      throw new Error(`Failed to search chunks: ${fileError.message || siteError.message}`);
     }
+
+    const chunks = [...(fileChunks || []), ...(siteChunks || [])];
 
     if (!chunks || chunks.length === 0) {
       return [];
