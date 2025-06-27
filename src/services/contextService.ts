@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import toast from 'react-hot-toast';
 import type { DatabaseContext, CreateContextData, DatabaseFile, DatabaseSite, CreateFileData } from '../types/database';
 
 export class ContextService {
@@ -148,24 +149,36 @@ export class ContextService {
   }
 
   static async uploadFile(file: File, contextId: string): Promise<string> {
-    const { data: user } = await supabase.auth.getUser();
-    const userId = user.user?.id;
-    // Generate a unique file path
-    const filePath = `${userId}/contexts/${contextId}/${file.name}`;
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      const userId = user.user?.id;
+      
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
+      
+      // Generate a unique file path with timestamp to avoid conflicts
+      const timestamp = Date.now();
+      const filePath = `${userId}/contexts/${contextId}/${timestamp}-${file.name}`;
 
-    // Upload to Supabase Storage
-    const { error } = await supabase.storage
-      .from('files')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false,
-      });
+      // Upload to Supabase Storage
+      const { error } = await supabase.storage
+        .from('files')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
 
-    if (error) {
-      console.error('Failed to upload file:', error);
+      if (error) {
+        console.error('Failed to upload file to storage:', error);
+        throw new Error(`Storage upload failed: ${error.message}`);
+      }
+
+      return filePath;
+    } catch (error) {
+      console.error('Upload file error:', error);
+      throw error;
     }
-
-    return filePath;
   }
 
   static async getFileUrl(path: string): Promise<string> {
