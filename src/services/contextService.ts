@@ -245,12 +245,6 @@ export class ContextService {
 
   static async processFileContent(file: File, fileId: string): Promise<void> {
     try {
-      // Update processing status to 'processing'
-      await supabase
-        .from('files')
-        .update({ processing_status: 'processing' })
-        .eq('id', fileId);
-
       let textContent: string;
       
       // Extract text based on file type

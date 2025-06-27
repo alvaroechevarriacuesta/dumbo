@@ -30,7 +30,6 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(contextName);
-  const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { deleteContext, refreshContexts } = useChat();
 
@@ -41,36 +40,8 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
   useEffect(() => {
     if (isOpen && contextId) {
       loadContextData();
-      
-      // Set up polling to refresh file status every 2 seconds
-      const interval = setInterval(() => {
-        loadContextData();
-      }, 2000);
-      
-      setRefreshInterval(interval);
-      
-      return () => {
-        if (interval) {
-          clearInterval(interval);
-        }
-      };
     }
-    
-    return () => {
-      if (refreshInterval) {
-        clearInterval(refreshInterval);
-        setRefreshInterval(null);
-      }
-    };
   }, [isOpen, contextId]);
-
-  // Clean up interval when modal closes
-  useEffect(() => {
-    if (!isOpen && refreshInterval) {
-      clearInterval(refreshInterval);
-      setRefreshInterval(null);
-    }
-  }, [isOpen, refreshInterval]);
 
   const loadContextData = async () => {
     setIsLoading(true);
@@ -135,7 +106,6 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
         // Process file content in background
         ContextService.processFileContent(file, dbFile.id).catch(error => {
           console.error(`Background processing failed for ${file.name}:`, error);
-          toast.error(`Processing failed for ${file.name}: ${error.message}`);
         });
 
         successCount++;
@@ -154,7 +124,9 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
     if (successCount > 0) {
       toast.success(`Successfully uploaded ${successCount} file${successCount > 1 ? 's' : ''}`);
       // Reload files after successful uploads
-      await loadContextData();
+      setTimeout(() => {
+        loadContextData();
+      }, 1000);
     }
 
     if (failCount > 0 && successCount === 0) {
@@ -510,7 +482,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
 
               {/* Actions */}
               <div className="flex justify-between pt-4 border-t border-secondary-200 dark:border-secondary-700">
-                <div>
+                <div className="flex space-x-2">
                   <Button
                     variant="danger"
                     onClick={() => setShowDeleteConfirm(true)}
