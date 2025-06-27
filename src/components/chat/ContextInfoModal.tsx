@@ -79,16 +79,34 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
 
     for (const file of files) {
       try {
-        // Upload file to storage first
+        // Validate file type first
+        const allowedTypes = ['application/pdf', 'text/plain'];
+        const allowedExtensions = ['.pdf', '.txt'];
+        
+        const isValidType = allowedTypes.includes(file.type) || 
+                           allowedExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+        
+        if (!isValidType) {
+          throw new Error('Only PDF and TXT files are supported');
+        }
+
+        // Upload file to storage
         const filePath = await ContextService.uploadFile(file, contextId);
 
-        // Only create database record if upload was successful
-        await ContextService.createFile({
+        // Create database record
+        const dbFile = await ContextService.createFile({
           name: file.name,
           context_id: contextId,
           size: file.size,
           type: file.type,
           path: filePath,
+          processing_status: 'pending',
+        });
+
+        // Process file content in background
+        ContextService.processFileContent(file, dbFile.id).catch(error => {
+          console.error(`Background processing failed for ${file.name}:`, error);
+          toast.error(`Processing failed for ${file.name}: ${error.message}`);
         });
 
         successCount++;
@@ -309,6 +327,34 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
                             <p className="text-xs text-secondary-500">
                               {formatFileSize(file.size)} • {formatDate(file.created_at)}
                             </p>
+                            {file.processing_status && (
+                              <div className="flex items-center mt-1">
+                                {file.processing_status === 'pending' && (
+                                  <span className="text-xs text-warning-600 dark:text-warning-400 flex items-center">
+                                    <div className="w-2 h-2 bg-warning-500 rounded-full mr-1 animate-pulse"></div>
+                                    Processing...
+                                  </span>
+                                )}
+                                {file.processing_status === 'processing' && (
+                                  <span className="text-xs text-primary-600 dark:text-primary-400 flex items-center">
+                                    <div className="w-2 h-2 bg-primary-500 rounded-full mr-1 animate-pulse"></div>
+                                    Analyzing content...
+                                  </span>
+                                )}
+                                {file.processing_status === 'completed' && (
+                                  <span className="text-xs text-success-600 dark:text-success-400 flex items-center">
+                                    <div className="w-2 h-2 bg-success-500 rounded-full mr-1"></div>
+                                    Ready for search
+                                  </span>
+                                )}
+                                {file.processing_status === 'failed' && (
+                                  <span className="text-xs text-error-600 dark:text-error-400 flex items-center">
+                                    <div className="w-2 h-2 bg-error-500 rounded-full mr-1"></div>
+                                    Processing failed
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">

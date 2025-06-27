@@ -1,5 +1,8 @@
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
+import { PDFService } from './pdfService';
+import { EmbeddingService } from './embeddingService';
+import { ChunkService } from './chunkService';
 import type { DatabaseContext, CreateContextData, DatabaseFile, DatabaseSite, CreateFileData } from '../types/database';
 
 export class ContextService {
@@ -145,6 +148,9 @@ export class ContextService {
 
   static async deleteFile(fileId: string): Promise<void> {
     try {
+      // First, delete associated chunks
+      await ChunkService.deleteChunksByFileId(fileId);
+
       // First, get the file details to access the storage path
       const { data: fileData, error: fetchError } = await supabase
         .from('files')
@@ -184,6 +190,17 @@ export class ContextService {
   }
 
   static async uploadFile(file: File, contextId: string): Promise<string> {
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'text/plain'];
+    const allowedExtensions = ['.pdf', '.txt'];
+    
+    const isValidType = allowedTypes.includes(file.type) || 
+                       allowedExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+    
+    if (!isValidType) {
+      throw new Error('Only PDF and TXT files are supported');
+    }
+
     try {
       const { data: user } = await supabase.auth.getUser();
       const userId = user.user?.id;
@@ -225,5 +242,72 @@ export class ContextService {
       .getPublicUrl(path);
 
     return data.publicUrl;
+  }
+
+  static async processFileContent(file: File, fileId: string): Promise<void> {
+    try {
+      let textContent: string;
+      
+      // Extract text based on file type
+      if (PDFService.isPDF(file)) {
+        textContent = await PDFService.extractText(file);
+      } else if (file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt')) {
+        textContent = await file.text();
+      } else {
+        throw new Error('Unsupported file type');
+      }
+
+      // Update file with extracted content
+      const { error: updateError } = await supabase
+        .from('files')
+        .update({ 
+          content: textContent,
+          processing_status: 'processing'
+        })
+        .eq('id', fileId);
+
+      if (updateError) {
+        throw new Error(`Failed to update file content: ${updateError.message}`);
+      }
+
+      // Process content into chunks and embeddings
+      const metadata = {
+        fileId,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+      };
+
+      const embeddedChunks = await EmbeddingService.processTextContent(textContent, metadata);
+      
+      // Save chunks to database
+      await ChunkService.saveChunks(embeddedChunks, fileId);
+
+      // Mark file as completed
+      const { error: completeError } = await supabase
+        .from('files')
+        .update({ processing_status: 'completed' })
+        .eq('id', fileId);
+
+      if (completeError) {
+        throw new Error(`Failed to mark file as completed: ${completeError.message}`);
+      }
+
+    } catch (error) {
+      console.error('File processing error:', error);
+      
+      // Mark file as failed and store error
+      const errorMessage = error instanceof Error ? error.message : 'Unknown processing error';
+      
+      await supabase
+        .from('files')
+        .update({ 
+          processing_status: 'failed',
+          processing_error: errorMessage
+        })
+        .eq('id', fileId);
+
+      throw error;
+    }
   }
 }

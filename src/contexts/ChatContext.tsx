@@ -304,7 +304,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const openaiService = getOpenAIService();
       let fullResponse = '';
 
-      for await (const chunk of openaiService.streamChatCompletion(conversationHistory)) {
+      for await (const chunk of openaiService.streamChatCompletion(conversationHistory, state.activeContextId)) {
         fullResponse += chunk;
         
         // Update the message in real-time
