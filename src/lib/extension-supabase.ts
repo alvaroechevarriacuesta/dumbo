@@ -1,20 +1,54 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Chrome storage adapter for Supabase
+// Safe Chrome storage adapter for Supabase with fallbacks
 const chromeStorageAdapter = {
   getItem: async (key: string) => {
-    console.log('ChromeStorageAdapter - getItem:', key);
-    const result = await chrome.storage.local.get(key);
-    console.log('ChromeStorageAdapter - getItem result:', result[key]);
-    return result[key] ?? null;
+    try {
+      console.log('ChromeStorageAdapter - getItem:', key);
+      
+      // Check if chrome APIs are available
+      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+        console.warn('ChromeStorageAdapter - Chrome storage not available, returning null');
+        return null;
+      }
+      
+      const result = await chrome.storage.local.get(key);
+      console.log('ChromeStorageAdapter - getItem result:', result[key]);
+      return result[key] ?? null;
+    } catch (error) {
+      console.error('ChromeStorageAdapter - getItem error:', error);
+      return null;
+    }
   },
   setItem: async (key: string, value: string) => {
-    console.log('ChromeStorageAdapter - setItem:', key, value.substring(0, 50) + '...');
-    await chrome.storage.local.set({ [key]: value });
+    try {
+      console.log('ChromeStorageAdapter - setItem:', key, value.substring(0, 50) + '...');
+      
+      // Check if chrome APIs are available
+      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+        console.warn('ChromeStorageAdapter - Chrome storage not available, skipping setItem');
+        return;
+      }
+      
+      await chrome.storage.local.set({ [key]: value });
+    } catch (error) {
+      console.error('ChromeStorageAdapter - setItem error:', error);
+    }
   },
   removeItem: async (key: string) => {
-    console.log('ChromeStorageAdapter - removeItem:', key);
-    await chrome.storage.local.remove(key);
+    try {
+      console.log('ChromeStorageAdapter - removeItem:', key);
+      
+      // Check if chrome APIs are available
+      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+        console.warn('ChromeStorageAdapter - Chrome storage not available, skipping removeItem');
+        return;
+      }
+      
+      await chrome.storage.local.remove(key);
+    } catch (error) {
+      console.error('ChromeStorageAdapter - removeItem error:', error);
+    }
   },
 };
 
