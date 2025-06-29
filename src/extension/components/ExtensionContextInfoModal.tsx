@@ -15,11 +15,11 @@ interface ExtensionContextInfoModalProps {
   contextName: string;
 }
 
-const ExtensionContextInfoModal: React.FC<ExtensionContextInfoModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  contextId, 
-  contextName 
+const ExtensionContextInfoModal: React.FC<ExtensionContextInfoModalProps> = ({
+  isOpen,
+  onClose,
+  contextId,
+  contextName
 }) => {
   const [files, setFiles] = useState<DatabaseFile[]>([]);
   const [sites, setSites] = useState<DatabaseSite[]>([]);
@@ -73,7 +73,7 @@ const ExtensionContextInfoModal: React.FC<ExtensionContextInfoModalProps> = ({
 
   const processUploads = async (files: File[]) => {
     if (isUploading) return;
-    
+
     setIsUploading(true);
     let successCount = 0;
     let failCount = 0;
@@ -83,10 +83,10 @@ const ExtensionContextInfoModal: React.FC<ExtensionContextInfoModalProps> = ({
         // Validate file type first
         const allowedTypes = ['application/pdf', 'text/plain'];
         const allowedExtensions = ['.pdf', '.txt'];
-        
-        const isValidType = allowedTypes.includes(file.type) || 
+
+        const isValidType = allowedTypes.includes(file.type) ||
                            allowedExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
-        
+
         if (!isValidType) {
           throw new Error('Only PDF and TXT files are supported');
         }
@@ -137,7 +137,7 @@ const ExtensionContextInfoModal: React.FC<ExtensionContextInfoModalProps> = ({
       setTimeout(() => {
         loadContextData();
       }, 1000);
-      
+
       // Set up a listener for processing completion
       setTimeout(() => {
         // Clear processing state after a reasonable time
@@ -428,7 +428,7 @@ const ExtensionContextInfoModal: React.FC<ExtensionContextInfoModalProps> = ({
                 <Globe className="w-5 h-5 mr-2 text-primary-500" />
                 Sites ({sites.length})
               </h3>
-              
+
               {sites.length > 0 ? (
                 <div className="space-y-2">
                   {sites.map((site) => (
@@ -512,4 +512,4 @@ const ExtensionContextInfoModal: React.FC<ExtensionContextInfoModalProps> = ({
   );
 };
 
-export default ExtensionContextInfoModal; 
+export default ExtensionContextInfoModal;
