@@ -1,4 +1,4 @@
-import { extensionSupabase as supabase } from '../lib/extension-supabase';
+import { supabase } from '../lib/supabase';
 import { EmbeddingService } from './embeddingService';
 import type { EmbeddedChunk } from './embeddingService';
 

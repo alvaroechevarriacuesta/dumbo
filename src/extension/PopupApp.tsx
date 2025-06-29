@@ -11,8 +11,6 @@ function PopupApp() {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [domText, setDomText] = useState('');
-  const [originalUrl, setOriginalUrl] = useState('');
-  const [pageTitle, setPageTitle] = useState('');
 
   useEffect(() => {
     console.log('PopupApp - Starting session check');
@@ -51,12 +49,9 @@ function PopupApp() {
 
     // Check for stored popup data
     chrome.storage.local.get(['popupData'], (result) => {
-      if (result.popupData) {
+      if (result.popupData && result.popupData.domText) {
         console.log('PopupApp - Found stored popup data:', result.popupData);
-        const { domText, originalUrl, originalTitle } = result.popupData;
-        if (domText) setDomText(domText);
-        if (originalUrl) setOriginalUrl(originalUrl);
-        if (originalTitle) setPageTitle(originalTitle);
+        setDomText(result.popupData.domText);
         // Clear the stored data
         chrome.storage.local.remove(['popupData']);
       }
@@ -106,8 +101,6 @@ function PopupApp() {
             isOpen={true}
             onClose={() => window.close()}
             domText={domText}
-            originalUrl={originalUrl}
-            pageTitle={pageTitle}
           />
         </ExtensionChatProvider>
       </ThemeProvider>

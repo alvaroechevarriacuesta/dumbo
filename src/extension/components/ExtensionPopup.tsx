@@ -1,29 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Plus, Info, Check, FileText, Loader2 } from 'lucide-react';
+import { X, User, Plus, Info, Check } from 'lucide-react';
 import { useExtensionChat } from '../hooks/useExtensionChat';
 import { extensionSupabase } from '../../lib/extension-supabase';
-import { ContentProcessor } from '../../services/contentProcessor';
 import Button from '../../components/ui/Button';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import type { Session } from '@supabase/supabase-js';
 import ExtensionContextInfoModal from './ExtensionContextInfoModal';
-import toast from 'react-hot-toast';
 
 interface ExtensionPopupProps {
   isOpen: boolean;
   onClose: () => void;
   domText: string;
-  originalUrl: string;
-  pageTitle: string;
 }
 
-const ExtensionPopup: React.FC<ExtensionPopupProps> = ({ isOpen, onClose, domText, originalUrl, pageTitle }) => {
+const ExtensionPopup: React.FC<ExtensionPopupProps> = ({ isOpen, onClose, domText }) => {
   const [isAddingContext, setIsAddingContext] = useState(false);
   const [newContextName, setNewContextName] = useState('');
   const [selectedContextInfo, setSelectedContextInfo] = useState<{id: string, name: string} | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  // Track which context (by ID) is currently processing
-  const [processingContextId, setProcessingContextId] = useState<string | null>(null);
   const { 
     activeContextId, 
     selectContext, 
@@ -101,39 +95,7 @@ const ExtensionPopup: React.FC<ExtensionPopupProps> = ({ isOpen, onClose, domTex
     }
   };
 
-  const handleProcessContent = async (contextId: string) => {
-    if (!domText || !originalUrl) {
-      toast.error('No content to process');
-      return;
-    }
-
-    // Mark this context as processing
-    setProcessingContextId(contextId);
-    
-    try {
-      console.log('Processing content for context:', contextId);
-      const results = await ContentProcessor.processCurrentTabContent(domText, originalUrl, [contextId], pageTitle);
-      
-      const totalChunks = results.reduce((sum, result) => sum + result.totalChunks, 0);
-      toast.success(`Successfully processed ${totalChunks} chunks from this page`);
-      
-      // Close the popup after successful processing
-      setTimeout(() => {
-        onClose();
-      }, 1500);
-      
-    } catch (error) {
-      console.error('Failed to process content:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to process content');
-    } finally {
-      // Clear processing state
-      setProcessingContextId(null);
-    }
-  };
-
   if (!isOpen) return null;
-
-  const hasContent = domText && domText.trim().length > 0;
 
   return (
     <>
@@ -153,34 +115,6 @@ const ExtensionPopup: React.FC<ExtensionPopupProps> = ({ isOpen, onClose, domTex
             <X className="h-5 w-5" />
           </Button>
         </div>
-
-        {/* Content Status */}
-        {hasContent && (
-          <div className="px-4 py-3 bg-primary-50 dark:bg-primary-900/20 border-b border-primary-200 dark:border-primary-800">
-            <div className="flex items-center space-x-2">
-              <FileText className="h-4 w-4 text-primary-600 dark:text-primary-400" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-primary-900 dark:text-primary-100">
-                  Content Ready: {pageTitle || 'Page Content'}
-                </p>
-                <p className="text-xs text-primary-700 dark:text-primary-300 truncate">
-                  {originalUrl && (
-                    <span className="mr-2">
-                      {(() => {
-                        try {
-                          return new URL(originalUrl).hostname;
-                        } catch {
-                          return originalUrl;
-                        }
-                      })()}
-                    </span>
-                  )}
-                  {domText.length} characters extracted
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* DOM Text Info */}
         <div className="px-4 py-2 bg-secondary-50 dark:bg-secondary-900 border-b border-secondary-200 dark:border-secondary-700">
@@ -314,27 +248,22 @@ const ExtensionPopup: React.FC<ExtensionPopupProps> = ({ isOpen, onClose, domTex
                 <div className="p-2">
                   {contexts.map((context) => {
                     const isActive = activeContextId === context.id;
-                    const isProcessingThis = processingContextId === context.id;
                     
                     return (
                       <div
                         key={context.id}
-                        className={`group relative mb-2 p-3 rounded-lg transition-all duration-200 ${
+                        className={`group relative mb-2 p-3 rounded-lg transition-all duration-200 cursor-pointer ${
                           isActive
                             ? 'bg-primary-100 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800'
                             : 'hover:bg-secondary-100 dark:hover:bg-secondary-700 border border-transparent'
                         }`}
+                        onClick={() => {
+                          selectContext(context.id);
+                          onClose();
+                        }}
                       >
                         <div className="flex items-start justify-between">
-                          <div 
-                            className="flex-1 min-w-0 cursor-pointer"
-                            onClick={() => {
-                              selectContext(context.id);
-                              if (!hasContent) {
-                                onClose();
-                              }
-                            }}
-                          >
+                          <div className="flex-1 min-w-0">
                             <p className={`text-sm font-medium truncate ${
                               isActive
                                 ? 'text-primary-900 dark:text-primary-100'
@@ -347,40 +276,12 @@ const ExtensionPopup: React.FC<ExtensionPopupProps> = ({ isOpen, onClose, domTex
                                 ? 'text-primary-700 dark:text-primary-300'
                                 : 'text-secondary-500 dark:text-secondary-400'
                             }`}>
-                              {context.description || 'No description'}
+                              {context.description}
                             </p>
-                            
-                            {/* Process Content Button */}
-                            {hasContent && (
-                              <div className="mt-2">
-                                <Button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleProcessContent(context.id);
-                                  }}
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={isProcessingThis}
-                                  className="w-full text-xs"
-                                >
-                                  {isProcessingThis ? (
-                                    <>
-                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                      Processing...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <FileText className="h-3 w-3 mr-1" />
-                                      Add Page to Context
-                                    </>
-                                  )}
-                                </Button>
-                              </div>
-                            )}
                           </div>
                           
                           {/* Info Button */}
-                          <div className="flex items-center justify-center ml-2">
+                          <div className="flex items-center justify-center">
                             <button
                               onClick={(e) => handleShowContextInfo(context.id, context.name, e)}
                               className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-600 dark:text-secondary-400"
