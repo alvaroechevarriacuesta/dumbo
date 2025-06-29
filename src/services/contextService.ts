@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { extensionSupabase as supabase } from '../lib/extension-supabase';
 import { PDFService } from './pdfService';
 import { EmbeddingService } from './embeddingService';
 import { ChunkService } from './chunkService';

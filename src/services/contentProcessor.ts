@@ -1,6 +1,6 @@
 import { ChunkService } from './chunkService';
 import { EmbeddingService } from './embeddingService';
-import { supabase } from '../lib/supabase';
+import { extensionSupabase as supabase } from '../lib/extension-supabase';
 
 export interface ProcessedContent {
   siteId: string;
@@ -91,7 +91,7 @@ export class ContentProcessor {
    */
   private static async createSite(url: string, contextId: string, pageTitle?: string): Promise<string> {
     try {
-      console.log('Creating/finding site for:', { url, contextId, pageTitle });
+      console.log('Creating/finding site for:', { url, contextId });
       
       // First, try to find existing site
       const { data: existingSite, error: findError } = await supabase
@@ -111,30 +111,17 @@ export class ContentProcessor {
         return existingSite.id;
       }
 
-      // Get page title and favicon
-      const title = pageTitle || await ContentProcessor.getPageTitle();
-      const faviconUrl = await ContentProcessor.getFaviconUrl(url);
-
-      // Sanitize title to prevent database issues
-      const sanitizedTitle = title
-        ? title.substring(0, 255).trim() // Limit length and trim
-        : 'Untitled';
-
       console.log('Creating new site with data:', {
         url,
-        context_id: contextId,
-        title: sanitizedTitle,
-        favicon_url: faviconUrl
+        context_id: contextId
       });
 
-      // Create new site
+      // Create new site - only include columns that exist in the database
       const { data: newSite, error: createError } = await supabase
         .from('sites')
         .insert([{
           url,
-          context_id: contextId,
-          title: sanitizedTitle,
-          favicon_url: faviconUrl
+          context_id: contextId
         }])
         .select('id')
         .single();
@@ -159,54 +146,6 @@ export class ContentProcessor {
     } catch (error) {
       console.error('Error creating/getting site:', error);
       throw new Error(`Failed to create site record: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  /**
-   * Get page title from current tab
-   */
-  private static async getPageTitle(): Promise<string> {
-    try {
-      // Check if chrome.tabs API is available
-      if (typeof chrome !== 'undefined' && chrome.tabs) {
-        const tabs = await new Promise<chrome.tabs.Tab[]>((resolve, reject) => {
-          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (chrome.runtime.lastError) {
-              reject(new Error(chrome.runtime.lastError.message));
-            } else {
-              resolve(tabs);
-            }
-          });
-        });
-        return tabs[0]?.title || 'Untitled';
-      } else {
-        // Fallback: try to get title from document if available
-        if (typeof document !== 'undefined') {
-          return document.title || 'Untitled';
-        }
-        return 'Untitled';
-      }
-    } catch (error) {
-      console.warn('Failed to get page title:', error);
-      return 'Untitled';
-    }
-  }
-
-  /**
-   * Get favicon URL for the given URL
-   */
-  private static async getFaviconUrl(url: string): Promise<string | null> {
-    try {
-      // Skip favicon for extension URLs
-      if (url.startsWith('chrome-extension://') || url.startsWith('moz-extension://')) {
-        return null;
-      }
-      
-      const urlObj = new URL(url);
-      return `${urlObj.origin}/favicon.ico`;
-    } catch (error) {
-      console.warn('Failed to generate favicon URL:', error);
-      return null;
     }
   }
 
