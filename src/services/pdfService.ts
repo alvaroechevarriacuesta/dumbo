@@ -15,7 +15,12 @@ export class PDFService {
         const page = await pdf.getPage(pageNum);
         const textContent = await page.getTextContent();
         const pageText = textContent.items
-          .map((item: any) => item.str)
+          .map((item) => {
+            if ('str' in item) {
+              return item.str;
+            }
+            return '';
+          })
           .join(' ');
         fullText += pageText + '\n';
       }
