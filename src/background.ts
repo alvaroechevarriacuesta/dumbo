@@ -140,6 +140,8 @@ chrome.commands.onCommand.addListener((command) => {
                 chrome.storage.local.set({
                   popupData: {
                     domText: domText,
+                    originalUrl: tab.url,
+                    originalTitle: tab.title || 'Untitled',
                     timestamp: Date.now()
                   }
                 }, () => {
@@ -170,6 +172,8 @@ chrome.commands.onCommand.addListener((command) => {
                 chrome.storage.local.set({
                   popupData: {
                     domText: '',
+                    originalUrl: tab.url || '',
+                    originalTitle: tab.title || 'Untitled',
                     timestamp: Date.now()
                   }
                 });
@@ -193,46 +197,60 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep message channel open for async response
   }
   
+  if (message.type === 'SHOW_POPUP') {
+    console.log('SHOW_POPUP message received from content script:', message);
+    // Create popup window for contexts with the provided DOM text
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const currentTab = tabs[0];
+      if (!currentTab?.url) {
+        console.error('No active tab URL found');
+        return;
+      }
+
+      chrome.windows.getCurrent((currentWindow) => {
+        console.log('Current window:', currentWindow);
+        const width = 500;
+        const height = 600;
+        const left = Math.round(((currentWindow.width ?? 1024) - width) / 2);
+        const top = Math.round(((currentWindow.height ?? 768) - height) / 2);
+        
+        console.log('Creating popup window with dimensions:', { width, height, left, top });
+        
+        chrome.windows.create({
+          url: 'popup.html',
+          type: 'popup',
+          width,
+          height,
+          left,
+          top,
+          focused: true
+        }, (popupWindow) => {
+          console.log('Popup window created:', popupWindow);
+          if (popupWindow?.id) {
+            // Store the DOM text and original URL for the popup to retrieve
+            chrome.storage.local.set({
+              popupData: {
+                domText: message.domText || '',
+                originalUrl: currentTab.url,
+                originalTitle: currentTab.title || 'Untitled',
+                timestamp: Date.now()
+              }
+            }, () => {
+              console.log('Popup data stored in local storage with URL:', currentTab.url);
+              sendResponse({ success: true });
+            });
+          }
+        });
+      });
+    });
+    return true; // Keep message channel open for async response
+  }
+  
   if (message.type === 'OPEN_SIDE_PANEL') {
     // This can be called from the side panel itself or content scripts
     if (sender.tab?.id) {
       chrome.sidePanel.open({ tabId: sender.tab.id });
     }
-    sendResponse({ success: true });
-    return true;
-  }
-
-  if (message.type === 'SHOW_POPUP') {
-    console.log('Received SHOW_POPUP message:', message);
-    
-    // Show the popup
-    chrome.windows.getCurrent((currentWindow) => {
-      const width = 500;
-      const height = 600;
-      const left = Math.round(((currentWindow.width ?? 1024) - width) / 2);
-      const top = Math.round(((currentWindow.height ?? 768) - height) / 2);
-      
-      chrome.windows.create({
-        url: 'popup.html',
-        type: 'popup',
-        width,
-        height,
-        left,
-        top,
-        focused: true
-      }, (popupWindow) => {
-        if (popupWindow?.id) {
-          // Store the DOM text for the popup to retrieve
-          chrome.storage.local.set({
-            popupData: {
-              domText: message.domText,
-              timestamp: Date.now()
-            }
-          });
-        }
-      });
-    });
-    
     sendResponse({ success: true });
     return true;
   }
