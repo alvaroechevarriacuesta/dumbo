@@ -14,7 +14,7 @@ const Sidebar: React.FC = () => {
   const { close } = useSidebar();
   const { user } = useAuth();
   const { 
-    activeContextId, 
+    activeContextId,
     selectContext, 
     contexts, 
     isLoading, 
