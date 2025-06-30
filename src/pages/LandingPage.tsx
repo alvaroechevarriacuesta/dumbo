@@ -149,7 +149,7 @@ const LandingPage: React.FC = () => {
               <img 
                 src="/bolt-badge-dark.svg" 
                 alt="Powered by Bolt" 
-                className="h-6 w-auto"
+                className="h-8 w-auto"
               />
             </div>
             
