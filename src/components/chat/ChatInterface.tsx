@@ -266,13 +266,12 @@ const ChatInterface: React.FC = () => {
               {isStreaming && (
                 <div className="group">
                   <div className="mr-auto max-w-none">
-                    <div className="flex items-center space-x-3 py-6">
+                    <div className="flex items-center justify-center py-6">
                       <div className="flex space-x-1">
                         <div className="w-3 h-3 bg-primary-400 rounded-full animate-bounce"></div>
                         <div className="w-3 h-3 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                         <div className="w-3 h-3 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                       </div>
-                      <span className="text-sm text-secondary-500 dark:text-secondary-400">AI is thinking...</span>
                     </div>
                   </div>
                 </div>
