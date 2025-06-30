@@ -96,33 +96,38 @@ const WelcomeScreen: React.FC = () => {
               {recentContexts.map((context) => (
                 <div
                   key={context.id}
-                  onClick={() => handleContextSelect(context.id)}
-                  className="group relative p-6 bg-secondary-50 dark:bg-secondary-800 rounded-xl border border-secondary-200 dark:border-secondary-700 hover:border-primary-300 dark:hover:border-primary-600 transition-all duration-200 cursor-pointer hover:shadow-lg hover:scale-[1.02]"
+                  className="group relative p-6 bg-secondary-50 dark:bg-secondary-800 rounded-xl border border-secondary-200 dark:border-secondary-700 hover:border-primary-300 dark:hover:border-primary-600 transition-all duration-200 hover:shadow-lg hover:scale-[1.02]"
                 >
                   {/* Context Info Button */}
-                  <div className="absolute top-4 right-4">
+                  <div className="absolute top-3 right-3 z-10">
                     <button
                       onClick={(e) => handleShowContextInfo(context.id, context.name, e)}
-                      className="p-2 rounded-md hover:bg-secondary-200 dark:hover:bg-secondary-700 text-secondary-500 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-200 transition-colors"
+                      className="p-3 rounded-lg bg-white dark:bg-secondary-700 shadow-md hover:shadow-lg border border-secondary-200 dark:border-secondary-600 hover:bg-secondary-50 dark:hover:bg-secondary-600 text-secondary-600 dark:text-secondary-300 hover:text-secondary-800 dark:hover:text-secondary-100 transition-all duration-200"
                       title="Context settings"
                     >
-                      <MoreHorizontal className="h-4 w-4" />
+                      <MoreHorizontal className="h-5 w-5" />
                     </button>
                   </div>
 
-                  <div className="flex items-start justify-between mb-4">
+                  {/* Clickable area for selecting context */}
+                  <div 
+                    onClick={() => handleContextSelect(context.id)}
+                    className="cursor-pointer"
+                  >
+                    <div className="flex items-start justify-between mb-4 pr-12">
                     <div className="w-12 h-12 bg-gradient-to-r from-primary-500 to-accent-500 rounded-lg flex items-center justify-center">
                       <MessageCircle className="w-6 h-6 text-white" />
                     </div>
-                  </div>
+                    </div>
                   
-                  <h3 className="text-lg font-semibold text-secondary-900 dark:text-white mb-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200">
+                    <h3 className="text-lg font-semibold text-secondary-900 dark:text-white mb-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200 pr-12">
                     {context.name}
-                  </h3>
+                    </h3>
                   
-                  <p className="text-sm text-secondary-600 dark:text-secondary-400 mb-4">
+                    <p className="text-sm text-secondary-600 dark:text-secondary-400 mb-4 pr-12">
                     {formatContextDate(context.description)}
-                  </p>
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
