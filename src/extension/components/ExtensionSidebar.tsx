@@ -96,33 +96,6 @@ const ExtensionSidebar: React.FC = () => {
           </Button>
         </div>
 
-        {/* User Profile */}
-        <div className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary-200 dark:bg-secondary-700">
-              <div className="w-full h-full flex items-center justify-center">
-                <User className="h-6 w-6 text-secondary-500" />
-              </div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-secondary-900 dark:text-white truncate">
-                {session?.user?.email?.split('@')[0] || 'User'}
-              </p>
-              <p className="text-xs text-secondary-500 dark:text-secondary-400 truncate">
-                {session?.user?.email || 'Loading...'}
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="p-1 text-error-600 hover:text-error-700 hover:bg-error-50 dark:text-error-400 dark:hover:text-error-300 dark:hover:bg-error-900/20"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
         {/* Content Area */}
         <div className="flex-1 flex flex-col">
           {/* Error State */}
@@ -267,6 +240,33 @@ const ExtensionSidebar: React.FC = () => {
               </div>
             </>
           )}
+        </div>
+
+        {/* User Profile - Moved to bottom */}
+        <div className="p-4 border-t border-secondary-200 dark:border-secondary-700">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary-200 dark:bg-secondary-700">
+              <div className="w-full h-full flex items-center justify-center">
+                <User className="h-6 w-6 text-secondary-500" />
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-secondary-900 dark:text-white truncate">
+                {session?.user?.email?.split('@')[0] || 'User'}
+              </p>
+              <p className="text-xs text-secondary-500 dark:text-secondary-400 truncate">
+                {session?.user?.email || 'Loading...'}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="p-1 text-error-600 hover:text-error-700 hover:bg-error-50 dark:text-error-400 dark:hover:text-error-300 dark:hover:bg-error-900/20"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 

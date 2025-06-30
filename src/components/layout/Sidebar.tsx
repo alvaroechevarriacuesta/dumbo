@@ -73,33 +73,6 @@ const Sidebar: React.FC = () => {
           </Button>
         </div>
 
-        {/* User Profile */}
-        <div className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary-200 dark:bg-secondary-700">
-              {user?.avatar ? (
-                <img
-                  src={user.avatar}
-                  alt={user.username}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <User className="h-6 w-6 text-secondary-500" />
-                </div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-secondary-900 dark:text-white truncate">
-                {user?.username}
-              </p>
-              <p className="text-xs text-secondary-500 dark:text-secondary-400 truncate">
-                {user?.email}
-              </p>
-            </div>
-          </div>
-        </div>
-
         {/* Content Area */}
         <div className="flex-1 flex flex-col">
           {/* Error State */}
@@ -279,6 +252,33 @@ const Sidebar: React.FC = () => {
               </div>
             </>
           )}
+        </div>
+
+        {/* User Profile - Moved to bottom */}
+        <div className="p-4 border-t border-secondary-200 dark:border-secondary-700">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary-200 dark:bg-secondary-700">
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user.username}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <User className="h-6 w-6 text-secondary-500" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-secondary-900 dark:text-white truncate">
+                {user?.username}
+              </p>
+              <p className="text-xs text-secondary-500 dark:text-secondary-400 truncate">
+                {user?.email}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
