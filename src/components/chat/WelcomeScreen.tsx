@@ -14,8 +14,8 @@ const WelcomeScreen: React.FC = () => {
   const [selectedContextInfo, setSelectedContextInfo] = useState<{id: string, name: string} | null>(null);
 
   useEffect(() => {
-    // Get the 6 most recent contexts for better grid layout
-    const recent = contexts.slice(0, 6);
+    // Get the 3 most recent contexts for single row layout
+    const recent = contexts.slice(0, 3);
     setRecentContexts(recent);
   }, [contexts]);
 
@@ -87,12 +87,12 @@ const WelcomeScreen: React.FC = () => {
                   onClick={() => openWithAction?.('view-all')}
                   className="text-primary-600 dark:text-primary-400"
                 >
-                  View all {contexts.length}
+                  View all {contexts.length} contexts
                 </Button>
               )}
             </div>
             
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {recentContexts.map((context) => (
                 <div
                   key={context.id}
