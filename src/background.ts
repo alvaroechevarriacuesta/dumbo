@@ -10,7 +10,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   // Set default side panel options
   try {
     await chrome.sidePanel.setOptions({
-      path: "side-panel.html",
+      path: "side-panel-v2.html",
       enabled: true,
     });
     console.log("Side panel options set");

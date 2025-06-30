@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
+import { extensionSupabase } from '../lib/extension-supabase';
 import { chromeStorage } from '../lib/chrome-storage';
 import type { User, LoginCredentials, SignupCredentials, AuthState } from '../types/auth';
 
@@ -8,6 +9,11 @@ interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
   signup: (credentials: SignupCredentials) => Promise<void>;
   logout: () => Promise<void>;
+}
+
+interface AuthProviderProps {
+  children: ReactNode;
+  isExtension?: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,15 +66,54 @@ const initialState: AuthState = {
   error: null,
 };
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children, isExtension = false }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
+  
+  // Use the appropriate Supabase client based on context
+  const supabaseClient = isExtension ? extensionSupabase : supabase;
 
   useEffect(() => {
     // Check for existing session
     const checkSession = async () => {
       try {
         dispatch({ type: 'AUTH_START' });
-        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (isExtension) {
+          // For extension, first try to get auth data from Chrome storage
+          const storedUser = await chromeStorage.get('user');
+          const storedAuthToken = await chromeStorage.get('authToken');
+          
+          if (storedUser && storedAuthToken) {
+            // Set the session in Supabase with stored token
+            const { data: { session }, error } = await supabaseClient.auth.setSession({
+              access_token: storedAuthToken as string,
+              refresh_token: (await chromeStorage.get('refreshToken')) as string || '',
+            });
+            
+            if (error) {
+              console.error('Error setting session from storage:', error);
+              // Clear invalid stored data
+              await chromeStorage.clear();
+              dispatch({ type: 'AUTH_ERROR', payload: 'Invalid stored session' });
+              return;
+            }
+
+            if (session?.user) {
+              const user: User = {
+                id: session.user.id,
+                email: session.user.email!,
+                username: session.user.user_metadata?.username || session.user.email!.split('@')[0],
+                avatar: session.user.user_metadata?.avatar_url,
+                createdAt: new Date(session.user.created_at),
+              };
+              dispatch({ type: 'AUTH_SUCCESS', payload: user });
+              return;
+            }
+          }
+        }
+
+        // Fallback to regular Supabase session check
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
         
         if (error) {
           console.error('Error getting session:', error);
@@ -85,6 +130,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             createdAt: new Date(session.user.created_at),
           };
           dispatch({ type: 'AUTH_SUCCESS', payload: user });
+          
+          // Save to Chrome storage for extension
+          if (isExtension && session) {
+            await chromeStorage.set('user', user);
+            await chromeStorage.set('authToken', session.access_token);
+            await chromeStorage.set('refreshToken', session.refresh_token);
+          }
         } else {
           dispatch({ type: 'AUTH_ERROR', payload: 'No active session' });
         }
@@ -97,7 +149,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     checkSession();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
           const user: User = {
@@ -110,15 +162,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           dispatch({ type: 'AUTH_SUCCESS', payload: user });
           
           // Save to Chrome storage for extension
-          await chromeStorage.set('user', user);
-          await chromeStorage.set('authToken', session.access_token);
-          await chromeStorage.set('refreshToken', session.refresh_token);
+          if (isExtension && session) {
+            await chromeStorage.set('user', user);
+            await chromeStorage.set('authToken', session.access_token);
+            await chromeStorage.set('refreshToken', session.refresh_token);
+          }
         } else if (event === 'SIGNED_OUT') {
           dispatch({ type: 'AUTH_LOGOUT' });
-          // Clear Chrome storage
-          await chromeStorage.clear();
-        } else if (event === 'TOKEN_REFRESHED' && session) {
-          // Update stored tokens
+          // Clear Chrome storage for extension
+          if (isExtension) {
+            await chromeStorage.clear();
+          }
+        } else if (event === 'TOKEN_REFRESHED' && session && isExtension) {
+          // Update stored tokens for extension
           await chromeStorage.set('authToken', session.access_token);
           await chromeStorage.set('refreshToken', session.refresh_token);
         }
@@ -126,13 +182,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     );
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [isExtension, supabaseClient]);
 
   const login = async (credentials: LoginCredentials): Promise<void> => {
     dispatch({ type: 'AUTH_START' });
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
         email: credentials.email,
         password: credentials.password,
       });
@@ -141,7 +197,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw error;
       }
 
-      if (data.user) {
+      if (data.user && data.session) {
         const user: User = {
           id: data.user.id,
           email: data.user.email!,
@@ -152,14 +208,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         dispatch({ type: 'AUTH_SUCCESS', payload: user });
         
         // Save to Chrome storage for extension
-        if (data.session) {
+        if (isExtension) {
           await chromeStorage.set('user', user);
           await chromeStorage.set('authToken', data.session.access_token);
           await chromeStorage.set('refreshToken', data.session.refresh_token);
         }
       }
     } catch (error: unknown) {
-      dispatch({ type: 'AUTH_ERROR', payload: error instanceof Error ? error.message : 'Login failed' });
+      const errorMessage = error instanceof Error ? error.message : 'Login failed';
+      dispatch({ type: 'AUTH_ERROR', payload: errorMessage });
       throw error;
     }
   };
@@ -168,7 +225,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     dispatch({ type: 'AUTH_START' });
     
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await supabaseClient.auth.signUp({
         email: credentials.email,
         password: credentials.password,
         options: {
@@ -195,9 +252,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           dispatch({ type: 'AUTH_SUCCESS', payload: user });
           
           // Save to Chrome storage for extension
-          await chromeStorage.set('user', user);
-          await chromeStorage.set('authToken', data.session.access_token);
-          await chromeStorage.set('refreshToken', data.session.refresh_token);
+          if (isExtension) {
+            await chromeStorage.set('user', user);
+            await chromeStorage.set('authToken', data.session.access_token);
+            await chromeStorage.set('refreshToken', data.session.refresh_token);
+          }
         } else {
           // Email confirmation required
           dispatch({ type: 'AUTH_LOGOUT' });
@@ -205,24 +264,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       }
     } catch (error: unknown) {
-      dispatch({ type: 'AUTH_ERROR', payload: error instanceof Error ? error.message : 'Signup failed' });
+      const errorMessage = error instanceof Error ? error.message : 'Signup failed';
+      dispatch({ type: 'AUTH_ERROR', payload: errorMessage });
       throw error;
     }
   };
 
   const logout = async (): Promise<void> => {
     try {
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabaseClient.auth.signOut();
       if (error) {
         console.error('Logout error:', error);
       }
       dispatch({ type: 'AUTH_LOGOUT' });
-      // Clear Chrome storage
-      await chromeStorage.clear();
+      // Clear Chrome storage for extension
+      if (isExtension) {
+        await chromeStorage.clear();
+      }
     } catch (error) {
       console.error('Logout error:', error);
       dispatch({ type: 'AUTH_LOGOUT' });
-      await chromeStorage.clear();
+      if (isExtension) {
+        await chromeStorage.clear();
+      }
     }
   };
 

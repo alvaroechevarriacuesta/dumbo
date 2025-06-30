@@ -31,6 +31,11 @@ interface ChatContextValue extends ChatState {
   loadMoreMessages: (contextId: string) => Promise<void>;
 }
 
+interface ChatProviderProps {
+  children: ReactNode;
+  isExtension?: boolean;
+}
+
 const ChatContext = createContext<ChatContextValue | undefined>(undefined);
 
 type ChatAction =
@@ -122,7 +127,7 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
     case 'REMOVE_CONTEXT': {
       const filteredContexts = state.contexts.filter(ctx => ctx.id !== action.payload);
       const newActiveId = state.activeContextId === action.payload ? null : state.activeContextId;
-      const { [action.payload]: _, ...remainingMessages } = state.messages;
+      const { [action.payload]: _removedMessages, ...remainingMessages } = state.messages;
       return {
         ...state,
         contexts: filteredContexts,
@@ -157,7 +162,7 @@ const initialState: ChatState = {
   streamingMessageId: null,
 };
 
-export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtension = false }) => {
   const [state, dispatch] = useReducer(chatReducer, initialState);
   const { user, isAuthenticated } = useAuth();
 
@@ -190,7 +195,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const dbContexts = await ContextService.getUserContexts(user.id);
+      const dbContexts = await ContextService.getUserContexts(user.id, isExtension);
       const contexts = dbContexts.map(convertToContext);
       dispatch({ type: 'SET_CONTEXTS', payload: contexts });
     } catch (error) {
@@ -341,7 +346,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!user) throw new Error('User not authenticated');
 
     try {
-      const dbContext = await ContextService.createContext(contextData);
+      const dbContext = await ContextService.createContext(contextData, isExtension);
       const newContext = convertToContext(dbContext);
       dispatch({ type: 'ADD_CONTEXT', payload: newContext });
       
@@ -351,17 +356,20 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return newContext.id;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to create context';
-      throw new Error(errorMessage);
+      toast.error(errorMessage);
+      throw error;
     }
   };
 
   const deleteContext = async (contextId: string): Promise<void> => {
     try {
-      await ContextService.deleteContext(contextId);
+      await ContextService.deleteContext(contextId, isExtension);
       dispatch({ type: 'REMOVE_CONTEXT', payload: contextId });
+      toast.success('Context deleted successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete context';
-      throw new Error(errorMessage);
+      toast.error(errorMessage);
+      throw error;
     }
   };
 

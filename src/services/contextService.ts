@@ -1,12 +1,19 @@
 import { supabase } from '../lib/supabase';
+import { extensionSupabase } from '../lib/extension-supabase';
 import { PDFService } from './pdfService';
 import { EmbeddingService } from './embeddingService';
 import { ChunkService } from './chunkService';
 import type { DatabaseContext, CreateContextData, DatabaseFile, DatabaseSite, CreateFileData } from '../types/database';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export class ContextService {
-  static async getUserContexts(userId: string): Promise<DatabaseContext[]> {
-    const { data, error } = await supabase
+  private static getSupabaseClient(isExtension: boolean = false): SupabaseClient {
+    return isExtension ? extensionSupabase : supabase;
+  }
+
+  static async getUserContexts(userId: string, isExtension: boolean = false): Promise<DatabaseContext[]> {
+    const supabaseClient = this.getSupabaseClient(isExtension);
+    const { data, error } = await supabaseClient
       .from('contexts')
       .select('*')
       .eq('user_id', userId)
@@ -19,8 +26,9 @@ export class ContextService {
     return data || [];
   }
 
-  static async createContext(contextData: CreateContextData): Promise<DatabaseContext> {
-    const { data, error } = await supabase
+  static async createContext(contextData: CreateContextData, isExtension: boolean = false): Promise<DatabaseContext> {
+    const supabaseClient = this.getSupabaseClient(isExtension);
+    const { data, error } = await supabaseClient
       .from('contexts')
       .insert([{
         name: contextData.name,
@@ -36,10 +44,11 @@ export class ContextService {
     return data;
   }
 
-  static async deleteContext(contextId: string): Promise<void> {
+  static async deleteContext(contextId: string, isExtension: boolean = false): Promise<void> {
+    const supabaseClient = this.getSupabaseClient(isExtension);
     try {
       // First, get all files associated with this context
-      const { data: files, error: filesError } = await supabase
+      const { data: files, error: filesError } = await supabaseClient
         .from('files')
         .select('path')
         .eq('context_id', contextId);
@@ -56,7 +65,7 @@ export class ContextService {
           .map(file => file.path!);
 
         if (filePaths.length > 0) {
-          const { error: storageError } = await supabase.storage
+          const { error: storageError } = await supabaseClient.storage
             .from('files')
             .remove(filePaths);
 
@@ -68,7 +77,7 @@ export class ContextService {
       }
 
       // Delete the context (this will cascade delete files, sites, etc. from database)
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await supabaseClient
         .from('contexts')
         .delete()
         .eq('id', contextId);
@@ -82,9 +91,10 @@ export class ContextService {
     }
   }
 
-  static async getContextFiles(contextId: string): Promise<DatabaseFile[]> {
+  static async getContextFiles(contextId: string, isExtension: boolean = false): Promise<DatabaseFile[]> {
+    const supabaseClient = this.getSupabaseClient(isExtension);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('files')
         .select('*')
         .eq('context_id', contextId)
@@ -99,7 +109,7 @@ export class ContextService {
         (data || []).map(async (file) => {
           if (file.path) {
             try {
-              const publicUrl = await this.getFileUrl(file.path);
+              const publicUrl = await this.getFileUrl(file.path, isExtension);
               return { ...file, publicUrl };
             } catch (urlError) {
               console.warn(`Failed to get URL for file ${file.id}:`, urlError);
@@ -117,8 +127,9 @@ export class ContextService {
     }
   }
 
-  static async getContextSites(contextId: string): Promise<DatabaseSite[]> {
-    const { data, error } = await supabase
+  static async getContextSites(contextId: string, isExtension: boolean = false): Promise<DatabaseSite[]> {
+    const supabaseClient = this.getSupabaseClient(isExtension);
+    const { data, error } = await supabaseClient
       .from('sites')
       .select('*')
       .eq('context_id', contextId)
@@ -131,8 +142,9 @@ export class ContextService {
     return data || [];
   }
 
-  static async createFile(fileData: CreateFileData): Promise<DatabaseFile> {
-    const { data, error } = await supabase
+  static async createFile(fileData: CreateFileData, isExtension: boolean = false): Promise<DatabaseFile> {
+    const supabaseClient = this.getSupabaseClient(isExtension);
+    const { data, error } = await supabaseClient
       .from('files')
       .insert([fileData])
       .select()
@@ -145,13 +157,14 @@ export class ContextService {
     return data;
   }
 
-  static async deleteFile(fileId: string): Promise<void> {
+  static async deleteFile(fileId: string, isExtension: boolean = false): Promise<void> {
+    const supabaseClient = this.getSupabaseClient(isExtension);
     try {
       // First, delete associated chunks
       await ChunkService.deleteChunksByFileId(fileId);
 
       // First, get the file details to access the storage path
-      const { data: fileData, error: fetchError } = await supabase
+      const { data: fileData, error: fetchError } = await supabaseClient
         .from('files')
         .select('path')
         .eq('id', fileId)
@@ -163,7 +176,7 @@ export class ContextService {
 
       // Delete from storage if path exists
       if (fileData?.path) {
-        const { error: storageError } = await supabase.storage
+        const { error: storageError } = await supabaseClient.storage
           .from('files')
           .remove([fileData.path]);
 
@@ -174,7 +187,7 @@ export class ContextService {
       }
 
       // Delete from database
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await supabaseClient
         .from('files')
         .delete()
         .eq('id', fileId);
@@ -188,7 +201,8 @@ export class ContextService {
     }
   }
 
-  static async uploadFile(file: File, contextId: string): Promise<string> {
+  static async uploadFile(file: File, contextId: string, isExtension: boolean = false): Promise<string> {
+    const supabaseClient = this.getSupabaseClient(isExtension);
     // Validate file type
     const allowedTypes = ['application/pdf', 'text/plain'];
     const allowedExtensions = ['.pdf', '.txt'];
@@ -200,43 +214,47 @@ export class ContextService {
       throw new Error('Only PDF and TXT files are supported');
     }
 
-    try {
-      const { data: user } = await supabase.auth.getUser();
-      const userId = user.user?.id;
-      
-      if (!userId) {
-        throw new Error('User not authenticated');
-      }
-      
-      // Generate file path without timestamp - will fail if file exists
-      const filePath = `${userId}/contexts/${contextId}/${file.name}`;
+    // Generate unique file path
+    const timestamp = Date.now();
+    const fileName = `${timestamp}_${file.name}`;
+    const filePath = `${contextId}/${fileName}`;
 
-      // Upload to Supabase Storage
-      const { error } = await supabase.storage
-        .from('files')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-        });
+    // Upload file to storage
+    const { error: uploadError } = await supabaseClient.storage
+      .from('files')
+      .upload(filePath, file);
 
-      if (error) {
-        console.error('Failed to upload file to storage:', error);
-        // Provide more specific error messages for common cases
-        if (error.message.includes('already exists') || error.message.includes('duplicate')) {
-          throw new Error(`File "${file.name}" already exists in this context`);
-        }
-        throw new Error(`Upload failed: ${error.message}`);
-      }
-
-      return filePath;
-    } catch (error) {
-      console.error('Upload file error:', error);
-      throw error;
+    if (uploadError) {
+      throw new Error(`Failed to upload file: ${uploadError.message}`);
     }
+
+    // Create file record in database
+    const fileData: CreateFileData = {
+      name: file.name,
+      path: filePath,
+      context_id: contextId,
+      size: file.size,
+      type: file.type,
+    };
+
+    const { data: dbFile, error: dbError } = await supabaseClient
+      .from('files')
+      .insert([fileData])
+      .select()
+      .single();
+
+    if (dbError) {
+      // Clean up uploaded file if database insert fails
+      await supabaseClient.storage.from('files').remove([filePath]);
+      throw new Error(`Failed to create file record: ${dbError.message}`);
+    }
+
+    return dbFile.id;
   }
 
-  static async getFileUrl(path: string): Promise<string> {
-    const { data } = supabase.storage
+  static async getFileUrl(path: string, isExtension: boolean = false): Promise<string> {
+    const supabaseClient = this.getSupabaseClient(isExtension);
+    const { data } = supabaseClient.storage
       .from('files')
       .getPublicUrl(path);
 
@@ -246,72 +264,23 @@ export class ContextService {
   static async processFileContent(file: File, fileId: string): Promise<void> {
     try {
       let textContent: string;
-      
-      // Extract text based on file type
+
       if (file.type === 'application/pdf') {
         textContent = await PDFService.extractTextFromPDF(file);
-      } else if (file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt')) {
+      } else if (file.type === 'text/plain') {
         textContent = await file.text();
       } else {
         throw new Error('Unsupported file type');
       }
 
-      // Update file with extracted content
-      const { error: updateError } = await supabase
-        .from('files')
-        .update({ 
-          content: textContent,
-          processing_status: 'processing'
-        })
-        .eq('id', fileId);
-
-      if (updateError) {
-        throw new Error(`Failed to update file content: ${updateError.message}`);
-      }
-
-      // Process content into chunks and embeddings
-      const metadata = {
-        fileId,
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-      };
-
-      const embeddedChunks = await EmbeddingService.processTextContent(textContent, metadata);
-      
-      // Save chunks to database
+      // Create embeddings and chunks
+      const chunks = EmbeddingService.chunkText(textContent);
+      const embeddedChunks = await EmbeddingService.generateEmbeddings(chunks);
       await ChunkService.saveChunks(embeddedChunks, fileId);
 
-      // Mark file as completed
-      const { error: completeError } = await supabase
-        .from('files')
-        .update({ processing_status: 'completed' })
-        .eq('id', fileId);
-
-      if (completeError) {
-        throw new Error(`Failed to mark file as completed: ${completeError.message}`);
-      }
-
-      // Import toast dynamically to avoid circular dependencies
-      const { default: toast } = await import('react-hot-toast');
-      toast.success(`File "${file.name}" processed successfully! ${embeddedChunks.length} chunks created.`);
-
+      console.log(`Successfully processed file ${file.name} with ${embeddedChunks.length} chunks`);
     } catch (error) {
-      // Mark file as failed and store error
-      const errorMessage = error instanceof Error ? error.message : 'Unknown processing error';
-      
-      await supabase
-        .from('files')
-        .update({ 
-          processing_status: 'failed',
-          processing_error: errorMessage
-        })
-        .eq('id', fileId);
-
-      // Import toast dynamically to avoid circular dependencies
-      const { default: toast } = await import('react-hot-toast');
-      toast.error(`Failed to process file "${file.name}": ${errorMessage}`);
-
+      console.error('Error processing file content:', error);
       throw error;
     }
   }

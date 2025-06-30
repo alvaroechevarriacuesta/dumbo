@@ -13,8 +13,8 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <AuthProvider>
-          <ChatProvider>
+        <AuthProvider isExtension={false}>
+          <ChatProvider isExtension={false}>
             <SidebarProvider>
               <Router>
                 <div className="App">
