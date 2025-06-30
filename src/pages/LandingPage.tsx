@@ -74,7 +74,7 @@ const LandingPage: React.FC = () => {
     {
       icon: WifiOff,
       title: "Offline First",
-      description: "Use your data, even without internet connection"
+      description: "Use your data, even when it is not on the web"
     },
     {
       icon: Archive,
@@ -89,7 +89,6 @@ const LandingPage: React.FC = () => {
   ];
 
   const comparisonData = [
-    { feature: "Works offline", us: true, others: false },
     { feature: "Only uses your saved content", us: true, others: false },
     { feature: "No hallucinations", us: true, others: false },
     { feature: "Context switching", us: true, others: false },
