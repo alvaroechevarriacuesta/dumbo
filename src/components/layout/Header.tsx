@@ -6,13 +6,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
 import Button from '../ui/Button';
 
-// Bolt logo SVG component
-const BoltLogo: React.FC<{ className?: string }> = ({ className = "h-6 w-6" }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M13 2L3 14h7v8l10-12h-7V2z" />
-  </svg>
-);
-
 const Header: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const { isOpen, toggle } = useSidebar();
@@ -40,12 +33,13 @@ const Header: React.FC = () => {
             </Button>
           )}
           
-          {/* Bolt Logo */}
-          <div className="flex items-center space-x-2">
-            <BoltLogo className="h-6 w-6 text-primary-600 dark:text-primary-400" />
-            <span className="text-lg font-semibold text-secondary-900 dark:text-white">
-              Powered by Bolt
-            </span>
+          {/* Bolt Badge */}
+          <div className="flex items-center">
+            <img 
+              src={theme === 'dark' ? '/bolt-badge-dark.svg' : '/bolt-badge-light.svg'}
+              alt="Powered by Bolt"
+              className="h-8"
+            />
           </div>
         </div>
 
