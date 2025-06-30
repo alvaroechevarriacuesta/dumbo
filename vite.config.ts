@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
   const isExtensionV2 = mode === 'extension-v2';
   
   return {
+    base: './',
     plugins: [
       react(),
       crx({ manifest })
