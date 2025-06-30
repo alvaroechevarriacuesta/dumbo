@@ -322,10 +322,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtensio
         // Hide the thinking indicator once we start receiving content
         if (!hasStartedStreaming && chunkBuffer.trim().length > 0) {
           hasStartedStreaming = true;
-          // Remove the thinking indicator by stopping streaming state briefly
-          dispatch({ type: 'STOP_STREAMING' });
-          // Small delay to ensure UI updates
-          await new Promise(resolve => setTimeout(resolve, 50));
         }
         
         // Process characters one by one with a small delay for smooth streaming
