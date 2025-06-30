@@ -20,7 +20,8 @@ const Sidebar: React.FC = () => {
     isLoading, 
     error, 
     refreshContexts,
-    addContext
+    addContext,
+    isExtension
   } = useChat();
 
   const handleShowContextInfo = (contextId: string, contextName: string, e: React.MouseEvent) => {
@@ -288,6 +289,7 @@ const Sidebar: React.FC = () => {
           onClose={() => setSelectedContextInfo(null)}
           contextId={selectedContextInfo.id}
           contextName={selectedContextInfo.name}
+          isExtension={isExtension}
         />
       )}
     </>

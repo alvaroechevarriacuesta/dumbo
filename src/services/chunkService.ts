@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase';
+import { extensionSupabase } from '../lib/extension-supabase';
 import { EmbeddingService } from './embeddingService';
 import type { EmbeddedChunk } from './embeddingService';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface DatabaseChunk {
   id: string;
@@ -18,14 +20,20 @@ export interface ChunkSearchResult {
 }
 
 export class ChunkService {
+  private static getSupabaseClient(isExtension: boolean = false): SupabaseClient {
+    return isExtension ? extensionSupabase : supabase;
+  }
+
   /**
    * Save chunks to database
    */
   static async saveChunks(
     chunks: EmbeddedChunk[], 
     fileId?: string, 
-    siteId?: string
+    siteId?: string,
+    isExtension: boolean = false
   ): Promise<DatabaseChunk[]> {
+    const supabaseClient = this.getSupabaseClient(isExtension);
     const chunksToInsert = chunks.map(chunk => ({
       content: chunk.content,
       embedding: chunk.embedding,
@@ -34,10 +42,12 @@ export class ChunkService {
       metadata: chunk.metadata || {},
     }));
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('chunks')
       .insert(chunksToInsert)
       .select();
+
+    console.log('ChunkService: Saved chunks:', data);
 
     if (error) {
       throw new Error(`Failed to save chunks: ${error.message}`);
@@ -49,8 +59,9 @@ export class ChunkService {
   /**
    * Delete chunks by file ID
    */
-  static async deleteChunksByFileId(fileId: string): Promise<void> {
-    const { error } = await supabase
+  static async deleteChunksByFileId(fileId: string, isExtension: boolean = false): Promise<void> {
+    const supabaseClient = this.getSupabaseClient(isExtension);
+    const { error } = await supabaseClient
       .from('chunks')
       .delete()
       .eq('file_id', fileId);
@@ -63,8 +74,9 @@ export class ChunkService {
   /**
    * Delete chunks by site ID
    */
-  static async deleteChunksBySiteId(siteId: string): Promise<void> {
-    const { error } = await supabase
+  static async deleteChunksBySiteId(siteId: string, isExtension: boolean = false): Promise<void> {
+    const supabaseClient = this.getSupabaseClient(isExtension);
+    const { error } = await supabaseClient
       .from('chunks')
       .delete()
       .eq('site_id', siteId);
@@ -81,12 +93,14 @@ export class ChunkService {
   static async searchSimilarChunksForChat(
     contextId: string,
     queryEmbedding: number[],
-    limit: number = 5
+    limit: number = 5,
+    isExtension: boolean = false
   ): Promise<ChunkSearchResult[]> {
+    const supabaseClient = this.getSupabaseClient(isExtension);
     console.log('ChunkService: Searching for chunks in context:', contextId);
     
     // Get all chunks for files and sites in this context
-    const { data: fileChunks, error: fileError } = await supabase
+    const { data: fileChunks, error: fileError } = await supabaseClient
       .from('chunks')
       .select(`
         *,
@@ -95,7 +109,7 @@ export class ChunkService {
       .eq('files.context_id', contextId)
       .not('file_id', 'is', null);
 
-    const { data: siteChunks, error: siteError } = await supabase
+    const { data: siteChunks, error: siteError } = await supabaseClient
       .from('chunks')
       .select(`
         *,
@@ -177,8 +191,9 @@ export class ChunkService {
   /**
    * Get chunks by file ID
    */
-  static async getChunksByFileId(fileId: string): Promise<DatabaseChunk[]> {
-    const { data, error } = await supabase
+  static async getChunksByFileId(fileId: string, isExtension: boolean = false): Promise<DatabaseChunk[]> {
+    const supabaseClient = this.getSupabaseClient(isExtension);
+    const { data, error } = await supabaseClient
       .from('chunks')
       .select('*')
       .eq('file_id', fileId)
@@ -200,24 +215,30 @@ export class ChunkService {
     if (Array.isArray(embedding)) {
       return embedding;
     }
-    
-    // If it's a string, parse it
+
+    // If it's a string, try to parse it
     if (typeof embedding === 'string') {
       try {
         // Remove brackets and split by commas
         const cleanString = embedding.replace(/[[\]]/g, '');
         const values = cleanString.split(',').map(val => parseFloat(val.trim()));
-        
+
         // Filter out any NaN values
         const validValues = values.filter(val => !isNaN(val));
-        
+
         return validValues;
       } catch {
         return [];
       }
     }
-    
-    // If it's neither array nor string, return empty array
+
+    // If it's null or undefined, return empty array
+    if (embedding == null) {
+      return [];
+    }
+
+    // For any other type, return empty array
+    console.warn('Unknown embedding type:', typeof embedding);
     return [];
   }
 }

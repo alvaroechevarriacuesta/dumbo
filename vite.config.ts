@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => {
           // Main app entry point
           main: 'index.html',
           // Extension side panel entry point
-          'side-panel': 'side-panel.html',
+          'side-panel': 'side-panel-v2.html',
           // Extension popup entry point
           'popup': 'popup.html'
         } as Record<string, string>

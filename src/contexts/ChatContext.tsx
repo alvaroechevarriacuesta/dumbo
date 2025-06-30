@@ -29,6 +29,12 @@ interface ChatContextValue extends ChatState {
   refreshContexts: () => Promise<void>;
   loadMessages: (contextId: string) => Promise<void>;
   loadMoreMessages: (contextId: string) => Promise<void>;
+  isExtension: boolean;
+}
+
+interface ChatProviderProps {
+  children: ReactNode;
+  isExtension?: boolean;
 }
 
 const ChatContext = createContext<ChatContextValue | undefined>(undefined);
@@ -122,7 +128,7 @@ const chatReducer = (state: ChatState, action: ChatAction): ChatState => {
     case 'REMOVE_CONTEXT': {
       const filteredContexts = state.contexts.filter(ctx => ctx.id !== action.payload);
       const newActiveId = state.activeContextId === action.payload ? null : state.activeContextId;
-      const { [action.payload]: _, ...remainingMessages } = state.messages;
+      const { [action.payload]: _removedMessages, ...remainingMessages } = state.messages;
       return {
         ...state,
         contexts: filteredContexts,
@@ -157,7 +163,7 @@ const initialState: ChatState = {
   streamingMessageId: null,
 };
 
-export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtension = false }) => {
   const [state, dispatch] = useReducer(chatReducer, initialState);
   const { user, isAuthenticated } = useAuth();
 
@@ -190,7 +196,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const dbContexts = await ContextService.getUserContexts(user.id);
+      const dbContexts = await ContextService.getUserContexts(user.id, isExtension);
       const contexts = dbContexts.map(convertToContext);
       dispatch({ type: 'SET_CONTEXTS', payload: contexts });
     } catch (error) {
@@ -209,7 +215,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const loadMessages = async (contextId: string): Promise<void> => {
     try {
       // Load the latest 10 messages for initial view
-      const { messages, totalCount } = await MessageService.getLatestMessages(contextId, 10);
+      const { messages, totalCount } = await MessageService.getLatestMessages(contextId, 10, isExtension);
       const hasMore = totalCount > 10;
       const offset = Math.max(0, totalCount - 10);
       
@@ -235,7 +241,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { messages, hasMore } = await MessageService.getContextMessages(
         contextId, 
         limit,
-        newOffset
+        newOffset,
+        isExtension
       );
       
       dispatch({ type: 'PREPEND_MESSAGES', payload: { contextId, messages } });
@@ -267,7 +274,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const userMessage = await MessageService.createMessage(
         state.activeContextId,
         'user',
-        content
+        content,
+        isExtension
       );
 
       dispatch({
@@ -279,7 +287,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       assistantMessage = await MessageService.createMessage(
         state.activeContextId,
         'assistant',
-        ''
+        '',
+        isExtension
       );
 
       dispatch({
@@ -304,7 +313,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const openaiService = getOpenAIService();
       let fullResponse = '';
 
-      for await (const chunk of openaiService.streamChatCompletion(conversationHistory, state.activeContextId)) {
+      for await (const chunk of openaiService.streamChatCompletion(conversationHistory, state.activeContextId, isExtension)) {
         fullResponse += chunk;
         
         // Update the message in real-time
@@ -319,7 +328,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       // Save the final response to the database
-      await MessageService.updateMessage(assistantMessage.id, fullResponse);
+      await MessageService.updateMessage(assistantMessage.id, fullResponse, isExtension);
 
     } catch (error) {
       toast.error('Failed to send message');
@@ -327,7 +336,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // If there was an error, remove the incomplete assistant message
       if (assistantMessage) {
         try {
-          await MessageService.deleteMessage(assistantMessage.id);
+          await MessageService.deleteMessage(assistantMessage.id, isExtension);
         } catch (deleteError) {
           // Silently fail if we can't delete the incomplete message
         }
@@ -341,7 +350,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!user) throw new Error('User not authenticated');
 
     try {
-      const dbContext = await ContextService.createContext(contextData);
+      const dbContext = await ContextService.createContext(contextData, isExtension);
       const newContext = convertToContext(dbContext);
       dispatch({ type: 'ADD_CONTEXT', payload: newContext });
       
@@ -351,17 +360,20 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return newContext.id;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to create context';
-      throw new Error(errorMessage);
+      toast.error(errorMessage);
+      throw error;
     }
   };
 
   const deleteContext = async (contextId: string): Promise<void> => {
     try {
-      await ContextService.deleteContext(contextId);
+      await ContextService.deleteContext(contextId, isExtension);
       dispatch({ type: 'REMOVE_CONTEXT', payload: contextId });
+      toast.success('Context deleted successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete context';
-      throw new Error(errorMessage);
+      toast.error(errorMessage);
+      throw error;
     }
   };
 
@@ -382,6 +394,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         refreshContexts,
         loadMessages,
         loadMoreMessages,
+        isExtension,
       }}
     >
       {children}

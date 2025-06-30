@@ -46,7 +46,7 @@ export class ContentProcessor {
       for (const contextId of contextIds) {
         try {
           console.log(`Processing content for context: ${contextId}`);
-          
+
           // Create or get site record
           const siteId = await this.createSite(url, contextId, pageTitle);
 
@@ -121,7 +121,7 @@ export class ContentProcessor {
         .from('sites')
         .insert([{
           url,
-          context_id: contextId
+          context_id: contextId,
         }])
         .select('id')
         .single();
@@ -207,4 +207,4 @@ export class ContentProcessor {
       throw new Error(`Failed to save chunks: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
-} 
+}

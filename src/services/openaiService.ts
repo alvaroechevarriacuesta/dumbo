@@ -42,7 +42,8 @@ export class OpenAIService {
 
   async *streamChatCompletion(
     messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
-    contextId?: string
+    contextId?: string,
+    isExtension: boolean = false
   ): AsyncGenerator<string, void, unknown> {
     try {
       let systemPrompt = {
@@ -65,7 +66,8 @@ export class OpenAIService {
             const relevantChunks = await ChunkService.searchSimilarChunksForChat(
               contextId,
               queryEmbedding,
-              5
+              5,
+              isExtension
             );
 
             console.log('RAG: Found', relevantChunks.length, 'chunks');
@@ -135,7 +137,8 @@ Please answer based on the above context when relevant and cite your sources app
 
   async getChatCompletion(
     messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
-    contextId?: string
+    contextId?: string,
+    isExtension: boolean = false
   ): Promise<string> {
     try {
       let systemPrompt = {
@@ -158,7 +161,8 @@ Please answer based on the above context when relevant and cite your sources app
             const relevantChunks = await ChunkService.searchSimilarChunksForChat(
               contextId,
               queryEmbedding,
-              5
+              5,
+              isExtension
             );
 
             console.log('RAG: Found', relevantChunks.length, 'chunks');
@@ -223,16 +227,8 @@ Please answer based on the above context when relevant and cite your sources app
 // Singleton instance
 let openaiService: OpenAIService | null = null;
 
-interface ImportMetaEnv {
-  readonly VITE_OPENAI_API_KEY: string;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
-}
-
 export const getOpenAIService = (): OpenAIService => {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  const apiKey = (import.meta as { env: { VITE_OPENAI_API_KEY: string } }).env.VITE_OPENAI_API_KEY;
   
   if (!apiKey) {
     throw new Error('OpenAI API key not configured. Please set VITE_OPENAI_API_KEY in your environment variables.');

@@ -30,13 +30,15 @@ interface ContextInfoModalProps {
   onClose: () => void;
   contextId: string;
   contextName: string;
+  isExtension?: boolean;
 }
 
 const ContextInfoModal: React.FC<ContextInfoModalProps> = ({ 
   isOpen, 
   onClose, 
   contextId, 
-  contextName 
+  contextName,
+  isExtension = false
 }) => {
   const [files, setFiles] = useState<DatabaseFile[]>([]);
   const [sites, setSites] = useState<DatabaseSite[]>([]);
@@ -74,8 +76,8 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
 
     try {
       const [filesData, sitesData] = await Promise.all([
-        ContextService.getContextFiles(contextId),
-        ContextService.getContextSites(contextId)
+        ContextService.getContextFiles(contextId, isExtension),
+        ContextService.getContextSites(contextId, isExtension)
       ]);
 
       setFiles(filesData);
@@ -87,7 +89,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [contextId]);
+  }, [contextId, isExtension]);
 
   const handleFileSelect = useCallback((selectedFiles: FileList | null) => {
     if (!selectedFiles || selectedFiles.length === 0) return;
@@ -126,7 +128,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
         setUploadProgress(prev => ({ ...prev, [fileId]: 25 }));
 
         // Upload file to storage
-        const filePath = await ContextService.uploadFile(file, contextId);
+        const filePath = await ContextService.uploadFile(file, contextId, isExtension);
         setUploadProgress(prev => ({ ...prev, [fileId]: 50 }));
 
         // Create database record
@@ -137,7 +139,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
           type: file.type,
           path: filePath,
           processing_status: 'pending',
-        });
+        }, isExtension);
 
         setUploadProgress(prev => ({ ...prev, [fileId]: 75 }));
 
@@ -149,7 +151,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
         setUploadProgress(prev => ({ ...prev, [fileId]: 100 }));
 
         // Process file content in background
-        ContextService.processFileContent(file, dbFile.id)
+        ContextService.processFileContent(file, dbFile.id, isExtension)
           .then(() => {
             // Update the file status in local state
             setFiles(prev => prev.map(f => 
@@ -210,7 +212,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
     } else if (failCount > 0) {
       toast.error(`${failCount} file${failCount > 1 ? 's' : ''} failed to upload`);
     }
-  }, [contextId, isUploading]);
+  }, [contextId, isUploading, isExtension]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -230,7 +232,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
 
   const handleDeleteFile = useCallback(async (fileId: string, fileName: string) => {
     try {
-      await ContextService.deleteFile(fileId);
+      await ContextService.deleteFile(fileId, isExtension);
       setFiles(prev => prev.filter(f => f.id !== fileId));
       toast.success(`"${fileName}" deleted successfully`);
     } catch (err) {
@@ -238,7 +240,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete file';
       toast.error(errorMessage);
     }
-  }, []);
+  }, [isExtension]);
 
   const handleDeleteContext = useCallback(async () => {
     try {
@@ -495,7 +497,7 @@ const ContextInfoModal: React.FC<ContextInfoModalProps> = ({
                                     size="sm"
                                     onClick={async () => {
                                       try {
-                                        const url = await ContextService.getFileUrl(file.path!);
+                                        const url = await ContextService.getFileUrl(file.path!, isExtension);
                                         window.open(url, '_blank');
                                       } catch (err) {
                                         console.error('Failed to get file URL:', err);
