@@ -154,7 +154,6 @@ const LandingPage: React.FC = () => {
               <a href="#faq" className="text-secondary-300 hover:text-white transition-colors">FAQ</a>
               {isAuthenticated ? (
                 <div className="flex items-center space-x-4">
-                  <span className="text-secondary-300">Welcome, {user?.username}</span>
                   <Link to="/chat">
                     <Button className="bg-primary-600 hover:bg-primary-700">
                       Go to Chat
@@ -244,7 +243,7 @@ const LandingPage: React.FC = () => {
                     </Link>
                     <Link to="/auth">
                       <Button variant="outline" size="lg" className="px-8 py-4 text-lg border-secondary-600 text-secondary-300 hover:bg-secondary-800">
-                        See How It Works
+                        Log In
                         <ArrowRight className="w-5 h-5 ml-2" />
                       </Button>
                     </Link>
