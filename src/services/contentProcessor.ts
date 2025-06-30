@@ -122,7 +122,6 @@ export class ContentProcessor {
         .insert([{
           url,
           context_id: contextId,
-          title: pageTitle || url
         }])
         .select('id')
         .single();
