@@ -161,7 +161,7 @@ export class ContextService {
     const supabaseClient = this.getSupabaseClient(isExtension);
     try {
       // First, delete associated chunks
-      await ChunkService.deleteChunksByFileId(fileId);
+      await ChunkService.deleteChunksByFileId(fileId, isExtension);
 
       // First, get the file details to access the storage path
       const { data: fileData, error: fetchError } = await supabaseClient
@@ -214,42 +214,36 @@ export class ContextService {
       throw new Error('Only PDF and TXT files are supported');
     }
 
-    // Generate unique file path
-    const timestamp = Date.now();
-    const fileName = `${timestamp}_${file.name}`;
-    const filePath = `${contextId}/${fileName}`;
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      const userId = user.user?.id;
 
-    // Upload file to storage
-    const { error: uploadError } = await supabaseClient.storage
-      .from('files')
-      .upload(filePath, file);
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
 
-    if (uploadError) {
-      throw new Error(`Failed to upload file: ${uploadError.message}`);
+      // Generate file path without timestamp - will fail if file exists
+      const filePath = `${userId}/contexts/${contextId}/${file.name}`;
+      // Upload to Supabase Storage
+      const { error } = await supabase.storage
+        .from('files')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+        if (error) {
+          console.error('Failed to upload file to storage:', error);
+          // Provide more specific error messages for common cases
+          if (error.message.includes('already exists') || error.message.includes('duplicate')) {
+            throw new Error(`File "${file.name}" already exists in this context`);
+          }
+          throw new Error(`Upload failed: ${error.message}`);
+        }
+        return filePath;
+    } catch (error) {
+      console.error('Upload file error:', error);
+      throw error;
     }
-
-    // Create file record in database
-    const fileData: CreateFileData = {
-      name: file.name,
-      path: filePath,
-      context_id: contextId,
-      size: file.size,
-      type: file.type,
-    };
-
-    const { data: dbFile, error: dbError } = await supabaseClient
-      .from('files')
-      .insert([fileData])
-      .select()
-      .single();
-
-    if (dbError) {
-      // Clean up uploaded file if database insert fails
-      await supabaseClient.storage.from('files').remove([filePath]);
-      throw new Error(`Failed to create file record: ${dbError.message}`);
-    }
-
-    return dbFile.id;
   }
 
   static async getFileUrl(path: string, isExtension: boolean = false): Promise<string> {
@@ -261,7 +255,7 @@ export class ContextService {
     return data.publicUrl;
   }
 
-  static async processFileContent(file: File, fileId: string): Promise<void> {
+  static async processFileContent(file: File, fileId: string, isExtension: boolean = false): Promise<void> {
     try {
       let textContent: string;
 
@@ -276,7 +270,7 @@ export class ContextService {
       // Create embeddings and chunks
       const chunks = EmbeddingService.chunkText(textContent);
       const embeddedChunks = await EmbeddingService.generateEmbeddings(chunks);
-      await ChunkService.saveChunks(embeddedChunks, fileId);
+      await ChunkService.saveChunks(embeddedChunks, fileId, undefined, isExtension);
 
       console.log(`Successfully processed file ${file.name} with ${embeddedChunks.length} chunks`);
     } catch (error) {

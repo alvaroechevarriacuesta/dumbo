@@ -29,6 +29,7 @@ interface ChatContextValue extends ChatState {
   refreshContexts: () => Promise<void>;
   loadMessages: (contextId: string) => Promise<void>;
   loadMoreMessages: (contextId: string) => Promise<void>;
+  isExtension: boolean;
 }
 
 interface ChatProviderProps {
@@ -214,7 +215,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtensio
   const loadMessages = async (contextId: string): Promise<void> => {
     try {
       // Load the latest 10 messages for initial view
-      const { messages, totalCount } = await MessageService.getLatestMessages(contextId, 10);
+      const { messages, totalCount } = await MessageService.getLatestMessages(contextId, 10, isExtension);
       const hasMore = totalCount > 10;
       const offset = Math.max(0, totalCount - 10);
       
@@ -240,7 +241,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtensio
       const { messages, hasMore } = await MessageService.getContextMessages(
         contextId, 
         limit,
-        newOffset
+        newOffset,
+        isExtension
       );
       
       dispatch({ type: 'PREPEND_MESSAGES', payload: { contextId, messages } });
@@ -272,7 +274,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtensio
       const userMessage = await MessageService.createMessage(
         state.activeContextId,
         'user',
-        content
+        content,
+        isExtension
       );
 
       dispatch({
@@ -284,7 +287,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtensio
       assistantMessage = await MessageService.createMessage(
         state.activeContextId,
         'assistant',
-        ''
+        '',
+        isExtension
       );
 
       dispatch({
@@ -309,7 +313,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtensio
       const openaiService = getOpenAIService();
       let fullResponse = '';
 
-      for await (const chunk of openaiService.streamChatCompletion(conversationHistory, state.activeContextId)) {
+      for await (const chunk of openaiService.streamChatCompletion(conversationHistory, state.activeContextId, isExtension)) {
         fullResponse += chunk;
         
         // Update the message in real-time
@@ -324,7 +328,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtensio
       }
 
       // Save the final response to the database
-      await MessageService.updateMessage(assistantMessage.id, fullResponse);
+      await MessageService.updateMessage(assistantMessage.id, fullResponse, isExtension);
 
     } catch (error) {
       toast.error('Failed to send message');
@@ -332,7 +336,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtensio
       // If there was an error, remove the incomplete assistant message
       if (assistantMessage) {
         try {
-          await MessageService.deleteMessage(assistantMessage.id);
+          await MessageService.deleteMessage(assistantMessage.id, isExtension);
         } catch (deleteError) {
           // Silently fail if we can't delete the incomplete message
         }
@@ -390,6 +394,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtensio
         refreshContexts,
         loadMessages,
         loadMoreMessages,
+        isExtension,
       }}
     >
       {children}
