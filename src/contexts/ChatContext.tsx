@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useAuth } from './AuthContext';
+import { useSidebar } from './SidebarContext';
 import { ContextService } from '../services/contextService';
 import { MessageService } from '../services/messageService';
 import { getOpenAIService } from '../services/openaiService';

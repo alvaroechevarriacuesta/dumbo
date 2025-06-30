@@ -8,7 +8,7 @@ import type { ChatContext } from '../../types/chat';
 
 const WelcomeScreen: React.FC = () => {
   const { contexts, selectContext, isLoading, refreshContexts } = useChat();
-  const { openWithAction } = useSidebar();
+  const { openWithAction, closeOnMobile } = useSidebar();
   const [recentContexts, setRecentContexts] = useState<ChatContext[]>([]);
 
   useEffect(() => {
@@ -19,6 +19,8 @@ const WelcomeScreen: React.FC = () => {
 
   const handleContextSelect = (contextId: string) => {
     selectContext(contextId);
+    // Close sidebar on mobile after selecting context
+    closeOnMobile();
   };
 
   const formatContextDate = (description: string): string => {

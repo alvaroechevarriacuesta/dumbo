@@ -7,6 +7,7 @@ interface SidebarContextType {
   close: () => void;
   open: () => void;
   openWithAction?: (action?: 'add-context' | 'view-all') => void;
+  closeOnMobile: () => void;
 }
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
@@ -41,6 +42,12 @@ export const SidebarProvider: React.FC<{ children: ReactNode }> = ({ children })
     localStorage.setItem('sidebarOpen', JSON.stringify(true));
   };
 
+  const closeOnMobile = () => {
+    // Only close if we're on a mobile/small screen
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      close();
+    }
+  };
   const openWithAction = (action?: 'add-context' | 'view-all') => {
     open();
     // We can add action-specific logic here later if needed
@@ -48,7 +55,7 @@ export const SidebarProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   return (
-    <SidebarContext.Provider value={{ isOpen, toggle, close, open, openWithAction }}>
+    <SidebarContext.Provider value={{ isOpen, toggle, close, open, openWithAction, closeOnMobile }}>
       {children}
     </SidebarContext.Provider>
   );

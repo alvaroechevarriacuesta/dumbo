@@ -11,7 +11,7 @@ const Sidebar: React.FC = () => {
   const [isAddingContext, setIsAddingContext] = React.useState(false);
   const [newContextName, setNewContextName] = React.useState('');
   const [selectedContextInfo, setSelectedContextInfo] = React.useState<{id: string, name: string} | null>(null);
-  const { close } = useSidebar();
+  const { close, closeOnMobile } = useSidebar();
   const { user } = useAuth();
   const { 
     activeContextId, 
@@ -45,6 +45,8 @@ const Sidebar: React.FC = () => {
       setNewContextName('');
       setIsAddingContext(false);
       // Context is now auto-selected in the addContext function
+      // Close sidebar on mobile after creating context
+      closeOnMobile();
     } catch (error) {
       console.error('Failed to create context:', error);
     }
@@ -55,6 +57,11 @@ const Sidebar: React.FC = () => {
     setIsAddingContext(false);
   };
 
+  const handleContextSelect = (contextId: string) => {
+    selectContext(contextId);
+    // Close sidebar on mobile after selecting context
+    closeOnMobile();
+  };
   return (
     <>
       <div className="w-80 h-full bg-white dark:bg-secondary-800 flex flex-col">
@@ -215,7 +222,7 @@ const Sidebar: React.FC = () => {
                             ? 'bg-primary-100 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800'
                             : 'hover:bg-secondary-100 dark:hover:bg-secondary-700 border border-transparent'
                         }`}
-                        onClick={() => selectContext(context.id)}
+                        onClick={() => handleContextSelect(context.id)}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
