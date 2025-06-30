@@ -324,7 +324,7 @@ const ExtensionPopup: React.FC<ExtensionPopupProps> = ({ isOpen, onClose, domTex
                             : 'hover:bg-secondary-100 dark:hover:bg-secondary-700 border border-transparent'
                         }`}
                       >
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-center justify-between">
                           <div 
                             className="flex-1 min-w-0 cursor-pointer"
                             onClick={() => {
@@ -379,10 +379,10 @@ const ExtensionPopup: React.FC<ExtensionPopupProps> = ({ isOpen, onClose, domTex
                           </div>
                           
                           {/* Info Button */}
-                          <div className="flex items-center justify-center ml-2 flex-shrink-0">
+                          <div className="flex items-center justify-center ml-3 flex-shrink-0">
                             <button
                               onClick={(e) => handleShowContextInfo(context.id, context.name, e)}
-                              className="p-1.5 rounded-md hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-500 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-200 transition-colors"
+                              className="p-2 rounded-md hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-500 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-200 transition-colors"
                             >
                               <MoreHorizontal className="h-4 w-4" />
                             </button>

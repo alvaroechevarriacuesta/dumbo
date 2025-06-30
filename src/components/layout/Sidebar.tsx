@@ -217,7 +217,7 @@ const Sidebar: React.FC = () => {
                         }`}
                         onClick={() => selectContext(context.id)}
                       >
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm font-medium truncate ${
                               isActive
@@ -236,10 +236,10 @@ const Sidebar: React.FC = () => {
                           </div>
                           
                           {/* Info Button */}
-                          <div className="flex items-center justify-center ml-2">
+                          <div className="flex items-center justify-center ml-3 flex-shrink-0">
                             <button
                             onClick={(e) => handleShowContextInfo(context.id, context.name, e)}
-                              className="p-1.5 rounded-md hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-500 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-200 transition-colors"
+                              className="p-2 rounded-md hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-500 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-200 transition-colors"
                           >
                               <MoreHorizontal className="h-4 w-4" />
                           </button>
