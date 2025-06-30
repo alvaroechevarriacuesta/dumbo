@@ -91,10 +91,6 @@ const ChatInterface: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const scrollToTop = () => {
-    messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   // Scroll to bottom when context changes or messages are first loaded
   useEffect(() => {
     if (activeContextId && hasMessages) {
@@ -122,7 +118,7 @@ const ChatInterface: React.FC = () => {
         clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
           scrollToBottom();
-        }, 150); // 150ms buffer to prevent glitchy scrolling
+        }, 500); // 500ms buffer to prevent glitchy scrolling
       };
       
       // Initial scroll
@@ -131,7 +127,7 @@ const ChatInterface: React.FC = () => {
       // Set up interval for continuous scrolling during streaming
       const scrollInterval = setInterval(() => {
         scrollToBottom();
-      }, 300); // Scroll every 300ms during streaming (less frequent to reduce glitchiness)
+      }, 800); // Scroll every 800ms during streaming (less frequent to reduce glitchiness)
 
       return () => {
         clearInterval(scrollInterval);
@@ -158,11 +154,6 @@ const ChatInterface: React.FC = () => {
     
     await sendMessage(message);
     setMessage('');
-    
-    // Scroll to top after sending the message to see your message at the top
-    setTimeout(() => {
-      scrollToTop();
-    }, 100); // Small delay to ensure message is added to DOM first
   };
 
   const handleLoadMore = async () => {
