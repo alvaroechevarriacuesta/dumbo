@@ -52,7 +52,7 @@ const ChatInterface: React.FC = () => {
       // Set up synchronized scrolling that matches streaming rhythm
       const scrollInterval = setInterval(() => {
         scrollToBottom();
-      }, 200); // Matches the streaming delay for smooth sync
+      }, 100); // Faster scroll sync to match reduced streaming delay
       
       return () => clearInterval(scrollInterval);
     }

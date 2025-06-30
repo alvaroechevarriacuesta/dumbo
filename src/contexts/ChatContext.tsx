@@ -313,15 +313,15 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtensio
       const openaiService = getOpenAIService();
       let fullResponse = '';
       let chunkBuffer = '';
-      const CHUNK_DELAY = 50; // Delay between character chunks for smooth streaming
+      const CHUNK_DELAY = 20; // Reduced delay for more responsive streaming
 
       for await (const chunk of openaiService.streamChatCompletion(conversationHistory, state.activeContextId, isExtension)) {
         chunkBuffer += chunk;
         
         // Process characters one by one with a small delay for smooth streaming
         while (chunkBuffer.length > 0) {
-          // Take 1-3 characters at a time for natural streaming feel
-          const charsToAdd = Math.min(Math.floor(Math.random() * 3) + 1, chunkBuffer.length);
+          // Take 2-5 characters at a time for faster but still natural streaming
+          const charsToAdd = Math.min(Math.floor(Math.random() * 4) + 2, chunkBuffer.length);
           const nextChars = chunkBuffer.slice(0, charsToAdd);
           chunkBuffer = chunkBuffer.slice(charsToAdd);
           
