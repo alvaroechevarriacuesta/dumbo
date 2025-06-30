@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Sun, Moon, LogOut, Settings } from 'lucide-react';
+import { Menu, Sun, Moon, LogOut } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -28,14 +28,6 @@ const Header: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="p-2"
-          >
-            <Settings className="h-5 w-5" />
-          </Button>
-
           <Button
             variant="ghost"
             size="sm"

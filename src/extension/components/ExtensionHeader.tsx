@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Sun, Moon, LogOut, Settings, Globe, Save } from 'lucide-react';
+import { Menu, Sun, Moon, LogOut, Globe, Save } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { extensionSupabase } from '../../lib/extension-supabase';
@@ -94,14 +94,6 @@ const ExtensionHeader: React.FC = () => {
             title="Save current page (Ctrl+J / Cmd+J)"
           >
             <Save className="h-5 w-5" />
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className="p-2"
-          >
-            <Settings className="h-5 w-5" />
           </Button>
 
           <Button
