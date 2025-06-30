@@ -161,7 +161,7 @@ const Sidebar: React.FC = () => {
           {!isLoading && !error && contexts.length > 0 && (
             <>
               {/* Add Context Button */}
-              <div className="p-4 pb-6">
+              <div className="px-4 pt-6 pb-6">
                 {isAddingContext ? (
                   <div className="flex items-center space-x-2">
                     <input

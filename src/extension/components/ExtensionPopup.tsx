@@ -268,7 +268,7 @@ const ExtensionPopup: React.FC<ExtensionPopupProps> = ({ isOpen, onClose, domTex
           {!isLoading && !error && contexts.length > 0 && (
             <>
               {/* Add Context Button */}
-              <div className="p-4 pb-6 border-b border-secondary-200 dark:border-secondary-700">
+              <div className="px-4 pt-6 pb-6 border-b border-secondary-200 dark:border-secondary-700">
                 {isAddingContext ? (
                   <div className="flex items-center space-x-2">
                     <input
