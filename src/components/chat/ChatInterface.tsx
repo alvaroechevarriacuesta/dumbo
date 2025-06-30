@@ -52,31 +52,48 @@ const ChatInterface: React.FC = () => {
 
   // Buffered auto-scroll during streaming to prevent glitchy behavior
   useEffect(() => {
-    let scrollTimeout: NodeJS.Timeout;
+    let scrollTimeout: NodeJS.Timeout | null = null;
+    let scrollInterval: NodeJS.Timeout | null = null;
     
     if (isStreaming) {
-      // Use a debounced scroll to prevent excessive scrolling
-      const debouncedScroll = () => {
-        clearTimeout(scrollTimeout);
+      // Immediate scroll when streaming starts
+      scrollToBottom();
+      
+      // Set up smooth, buffered scrolling during streaming
+      const smoothScroll = () => {
+        if (scrollTimeout) clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
           scrollToBottom();
-        }, 500); // 500ms buffer to prevent glitchy scrolling
+        }, 150); // Reduced buffer for more responsive scrolling
       };
       
-      // Initial scroll
-      debouncedScroll();
-      
-      // Set up interval for continuous scrolling during streaming
-      const scrollInterval = setInterval(() => {
-        scrollToBottom();
-      }, 800); // Scroll every 800ms during streaming (less frequent to reduce glitchiness)
+      // Set up regular scrolling during streaming to ensure "AI thinking" stays at bottom
+      scrollInterval = setInterval(() => {
+        smoothScroll();
+      }, 300); // More frequent but buffered scrolling
 
       return () => {
-        clearInterval(scrollInterval);
-        clearTimeout(scrollTimeout);
+        if (scrollInterval) clearInterval(scrollInterval);
+        if (scrollTimeout) clearTimeout(scrollTimeout);
       };
     }
+    
+    return () => {
+      if (scrollInterval) clearInterval(scrollInterval);
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+    };
   }, [isStreaming]);
+
+  // Additional scroll when streaming content changes to ensure "AI thinking" stays visible
+  useEffect(() => {
+    if (isStreaming) {
+      const timeoutId = setTimeout(() => {
+        scrollToBottom();
+      }, 100); // Small delay to ensure DOM updates are complete
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isStreaming, messages.length]);
 
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
