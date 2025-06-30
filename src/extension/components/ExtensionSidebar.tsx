@@ -149,7 +149,7 @@ const ExtensionSidebar: React.FC = () => {
           {!isLoading && !error && contexts.length > 0 && (
             <>
               {/* Add Context Button */}
-              <div className="p-4">
+              <div className="p-4 pb-6">
                 {isAddingContext ? (
                   <div className="flex items-center space-x-2">
                     <input
@@ -180,7 +180,7 @@ const ExtensionSidebar: React.FC = () => {
                   <Button
                     onClick={handleAddContext}
                     variant="outline"
-                    className="w-full justify-center"
+                    className="w-full justify-center py-3"
                     size="sm"
                   >
                     <Plus className="h-4 w-4 mr-2" />
