@@ -6,6 +6,7 @@ import { SidebarProvider } from './contexts/SidebarContext';
 import { ChatProvider } from './contexts/ChatContext';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/AuthPage';
 import ChatPage from './pages/ChatPage';
 
@@ -19,9 +20,10 @@ function App() {
               <Router>
                 <div className="App">
                   <Routes>
+                    <Route path="/" element={<LandingPage />} />
                     <Route path="/auth" element={<AuthPage />} />
                     <Route
-                      path="/"
+                      path="/chat"
                       element={
                         <ProtectedRoute>
                           <ChatPage />
