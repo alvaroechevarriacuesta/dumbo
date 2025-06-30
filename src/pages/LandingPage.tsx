@@ -146,6 +146,11 @@ const LandingPage: React.FC = () => {
                 alt="Dumbo Logo" 
                 className="h-8 w-auto"
               />
+              <img 
+                src="/bolt-badge-dark.svg" 
+                alt="Powered by Bolt" 
+                className="h-6 w-auto"
+              />
             </div>
             
             <div className="hidden md:flex items-center space-x-8">
