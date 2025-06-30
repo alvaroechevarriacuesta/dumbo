@@ -105,21 +105,38 @@ const ChatInterface: React.FC = () => {
     }
   }, [activeContextId, hasMessages]);
 
-  // Auto-scroll to bottom when streaming or when new messages are added
+  // Auto-scroll to bottom when new messages are added (but not during streaming)
   useEffect(() => {
-    if (isStreaming || messages.length > 0) {
+    if (!isStreaming && messages.length > 0) {
       scrollToBottom();
     }
-  }, [isStreaming, messages]);
+  }, [messages]);
 
-  // Scroll to bottom when streaming content updates
+  // Buffered auto-scroll during streaming to prevent glitchy behavior
   useEffect(() => {
+    let scrollTimeout: NodeJS.Timeout;
+    
     if (isStreaming) {
+      // Use a debounced scroll to prevent excessive scrolling
+      const debouncedScroll = () => {
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+          scrollToBottom();
+        }, 150); // 150ms buffer to prevent glitchy scrolling
+      };
+      
+      // Initial scroll
+      debouncedScroll();
+      
+      // Set up interval for continuous scrolling during streaming
       const scrollInterval = setInterval(() => {
         scrollToBottom();
-      }, 100); // Scroll every 100ms during streaming
+      }, 300); // Scroll every 300ms during streaming (less frequent to reduce glitchiness)
 
-      return () => clearInterval(scrollInterval);
+      return () => {
+        clearInterval(scrollInterval);
+        clearTimeout(scrollTimeout);
+      };
     }
   }, [isStreaming]);
 
@@ -139,11 +156,13 @@ const ChatInterface: React.FC = () => {
     e.preventDefault();
     if (!message.trim() || isStreaming || !activeContextId) return;
     
-    // Scroll to top when sending a new message
-    scrollToTop();
-    
     await sendMessage(message);
     setMessage('');
+    
+    // Scroll to top after sending the message to see your message at the top
+    setTimeout(() => {
+      scrollToTop();
+    }, 100); // Small delay to ensure message is added to DOM first
   };
 
   const handleLoadMore = async () => {
