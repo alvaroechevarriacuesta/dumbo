@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useAuth } from './AuthContext';
+import { useSidebar } from './SidebarContext';
 import { ContextService } from '../services/contextService';
 import { MessageService } from '../services/messageService';
 import { getOpenAIService } from '../services/openaiService';
@@ -209,7 +210,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtensio
   };
 
   const selectContext = (contextId: string) => {
-    dispatch({ type: 'SELECT_CONTEXT', payload: contextId });
+    // Allow empty string to deselect context (show welcome screen)
+    dispatch({ type: 'SELECT_CONTEXT', payload: contextId || '' });
   };
 
   const loadMessages = async (contextId: string): Promise<void> => {
