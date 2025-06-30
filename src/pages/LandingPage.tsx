@@ -441,51 +441,6 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="px-6 py-20">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Trusted by Knowledge Workers
-            </h2>
-            <p className="text-xl text-secondary-300">
-              Used by researchers, students, analysts
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <div key={index} className="bg-secondary-800 rounded-2xl p-8 border border-secondary-700">
-                <Quote className="w-8 h-8 text-primary-400 mb-6" />
-                <p className="text-lg text-secondary-200 mb-6 leading-relaxed">
-                  "{testimonial.quote}"
-                </p>
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-primary-600 to-accent-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-semibold text-sm">{testimonial.avatar}</span>
-                  </div>
-                  <div>
-                    <div className="font-semibold">{testimonial.author}</div>
-                    <div className="text-secondary-400 text-sm">{testimonial.role}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Logo Cloud */}
-          <div className="mt-16 text-center">
-            <p className="text-secondary-400 mb-8">Used by professionals at</p>
-            <div className="flex items-center justify-center space-x-12 opacity-50">
-              <div className="text-2xl font-bold">Stanford</div>
-              <div className="text-2xl font-bold">MIT</div>
-              <div className="text-2xl font-bold">Google</div>
-              <div className="text-2xl font-bold">OpenAI</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* FAQ Section */}
       <section id="faq" className="px-6 py-20 bg-secondary-800">
         <div className="max-w-4xl mx-auto">
