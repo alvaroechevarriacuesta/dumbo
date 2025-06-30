@@ -43,55 +43,18 @@ const ChatInterface: React.FC = () => {
     }
   }, [activeContextId, hasMessages]);
 
-  // Auto-scroll to bottom when new messages are added (but not during streaming)
-  useEffect(() => {
-    if (!isStreaming && messages.length > 0) {
-      scrollToBottom();
-    }
-  }, [messages]);
-
-  // Buffered auto-scroll during streaming to prevent glitchy behavior
-  useEffect(() => {
-    let scrollTimeout: NodeJS.Timeout | null = null;
-    let scrollInterval: NodeJS.Timeout | null = null;
-    
-    if (isStreaming) {
-      // Immediate scroll when streaming starts
-      scrollToBottom();
-      
-      // Set up smooth, buffered scrolling during streaming
-      const smoothScroll = () => {
-        if (scrollTimeout) clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(() => {
-          scrollToBottom();
-        }, 150); // Reduced buffer for more responsive scrolling
-      };
-      
-      // Set up regular scrolling during streaming to ensure "AI thinking" stays at bottom
-      scrollInterval = setInterval(() => {
-        smoothScroll();
-      }, 300); // More frequent but buffered scrolling
-
-      return () => {
-        if (scrollInterval) clearInterval(scrollInterval);
-        if (scrollTimeout) clearTimeout(scrollTimeout);
-      };
-    }
-    
-    return () => {
-      if (scrollInterval) clearInterval(scrollInterval);
-      if (scrollTimeout) clearTimeout(scrollTimeout);
-    };
-  }, [isStreaming]);
-
-  // Additional scroll when streaming content changes to ensure "AI thinking" stays visible
+  // Synchronized auto-scroll during streaming - matches the streaming delay
   useEffect(() => {
     if (isStreaming) {
-      const timeoutId = setTimeout(() => {
+      // Scroll immediately when streaming starts
+      scrollToBottom();
+      
+      // Set up synchronized scrolling that matches streaming rhythm
+      const scrollInterval = setInterval(() => {
         scrollToBottom();
-      }, 100); // Small delay to ensure DOM updates are complete
+      }, 200); // Matches the streaming delay for smooth sync
       
-      return () => clearTimeout(timeoutId);
+      return () => clearInterval(scrollInterval);
     }
   }, [isStreaming, messages.length]);
 

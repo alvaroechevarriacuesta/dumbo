@@ -312,19 +312,36 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtensio
       // Stream response from OpenAI with RAG context
       const openaiService = getOpenAIService();
       let fullResponse = '';
+      let chunkBuffer = '';
+      const CHUNK_DELAY = 50; // Delay between character chunks for smooth streaming
 
       for await (const chunk of openaiService.streamChatCompletion(conversationHistory, state.activeContextId, isExtension)) {
-        fullResponse += chunk;
+        chunkBuffer += chunk;
         
-        // Update the message in real-time
-        dispatch({
-          type: 'UPDATE_MESSAGE',
-          payload: {
-            contextId: state.activeContextId,
-            messageId: assistantMessage.id,
-            content: fullResponse,
-          },
-        });
+        // Process characters one by one with a small delay for smooth streaming
+        while (chunkBuffer.length > 0) {
+          // Take 1-3 characters at a time for natural streaming feel
+          const charsToAdd = Math.min(Math.floor(Math.random() * 3) + 1, chunkBuffer.length);
+          const nextChars = chunkBuffer.slice(0, charsToAdd);
+          chunkBuffer = chunkBuffer.slice(charsToAdd);
+          
+          fullResponse += nextChars;
+          
+          // Update the message in real-time with delay
+          dispatch({
+            type: 'UPDATE_MESSAGE',
+            payload: {
+              contextId: state.activeContextId,
+              messageId: assistantMessage.id,
+              content: fullResponse,
+            },
+          });
+          
+          // Add delay between character chunks for smooth streaming
+          if (chunkBuffer.length > 0) {
+            await new Promise(resolve => setTimeout(resolve, CHUNK_DELAY));
+          }
+        }
       }
 
       // Save the final response to the database
