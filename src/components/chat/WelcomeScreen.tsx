@@ -1,19 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { MessageCircle, Plus, Clock, ArrowRight } from 'lucide-react';
+import { MessageCircle, Plus, Clock, ArrowRight, MoreHorizontal } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import { useSidebar } from '../../contexts/SidebarContext';
 import Button from '../ui/Button';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import ContextInfoModal from './ContextInfoModal';
 import type { ChatContext } from '../../types/chat';
 
 const WelcomeScreen: React.FC = () => {
-  const { contexts, selectContext, isLoading, refreshContexts } = useChat();
+  const { contexts, selectContext, isLoading, refreshContexts, isExtension } = useChat();
   const { openWithAction, closeOnMobile } = useSidebar();
   const [recentContexts, setRecentContexts] = useState<ChatContext[]>([]);
+  const [selectedContextInfo, setSelectedContextInfo] = useState<{id: string, name: string} | null>(null);
 
   useEffect(() => {
-    // Get the 3 most recent contexts
-    const recent = contexts.slice(0, 3);
+    // Get the 6 most recent contexts for better grid layout
+    const recent = contexts.slice(0, 6);
     setRecentContexts(recent);
   }, [contexts]);
 
@@ -23,6 +25,10 @@ const WelcomeScreen: React.FC = () => {
     closeOnMobile();
   };
 
+  const handleShowContextInfo = (contextId: string, contextName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedContextInfo({ id: contextId, name: contextName });
+  };
   const formatContextDate = (description: string): string => {
     // Extract date from description like "Created 12/27/2024"
     const match = description.match(/Created (\d{1,2}\/\d{1,2}\/\d{4})/);
@@ -72,31 +78,39 @@ const WelcomeScreen: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-semibold text-secondary-900 dark:text-white flex items-center">
                 <Clock className="w-6 h-6 mr-3 text-primary-500" />
-                Recent Contexts
+                Your Contexts
               </h2>
-              {contexts.length > 3 && (
+              {contexts.length > 6 && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => openWithAction?.('view-all')}
                   className="text-primary-600 dark:text-primary-400"
                 >
-                  View all {contexts.length} contexts
+                  View all {contexts.length}
                 </Button>
               )}
             </div>
             
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {recentContexts.map((context) => (
                 <div
                   key={context.id}
                   onClick={() => handleContextSelect(context.id)}
-                  className="group p-6 bg-secondary-50 dark:bg-secondary-800 rounded-xl border border-secondary-200 dark:border-secondary-700 hover:border-primary-300 dark:hover:border-primary-600 transition-all duration-200 cursor-pointer hover:shadow-lg hover:scale-[1.02]"
+                  className="group relative p-6 bg-secondary-50 dark:bg-secondary-800 rounded-xl border border-secondary-200 dark:border-secondary-700 hover:border-primary-300 dark:hover:border-primary-600 transition-all duration-200 cursor-pointer hover:shadow-lg hover:scale-[1.02]"
                 >
+                  {/* Context Info Button */}
+                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => handleShowContextInfo(context.id, context.name, e)}
+                      className="p-2 rounded-md hover:bg-secondary-200 dark:hover:bg-secondary-700 text-secondary-500 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-200 transition-colors"
+                      title="Context settings"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                  </div>
+
                   <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 bg-gradient-to-r from-primary-500 to-accent-500 rounded-lg flex items-center justify-center">
-                      <MessageCircle className="w-6 h-6 text-white" />
-                    </div>
                     <ArrowRight className="w-5 h-5 text-secondary-400 group-hover:text-primary-500 transition-colors duration-200" />
                   </div>
                   
@@ -107,11 +121,6 @@ const WelcomeScreen: React.FC = () => {
                   <p className="text-sm text-secondary-600 dark:text-secondary-400 mb-4">
                     {formatContextDate(context.description)}
                   </p>
-                  
-                  <div className="flex items-center text-xs text-secondary-500 dark:text-secondary-500">
-                    <div className="w-2 h-2 bg-success-500 rounded-full mr-2"></div>
-                    Ready to chat
-                  </div>
                 </div>
               ))}
             </div>
@@ -119,7 +128,7 @@ const WelcomeScreen: React.FC = () => {
         )}
 
         {/* Quick Actions */}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-2">
           {/* Create New Context */}
           <div className="p-8 bg-gradient-to-br from-primary-50 to-accent-50 dark:from-primary-900/20 dark:to-accent-900/20 rounded-2xl border border-primary-200 dark:border-primary-800">
             <div className="w-16 h-16 bg-gradient-to-r from-primary-500 to-accent-500 rounded-xl flex items-center justify-center mb-6">
@@ -233,6 +242,17 @@ const WelcomeScreen: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Context Info Modal */}
+      {selectedContextInfo && (
+        <ContextInfoModal
+          isOpen={!!selectedContextInfo}
+          onClose={() => setSelectedContextInfo(null)}
+          contextId={selectedContextInfo.id}
+          contextName={selectedContextInfo.name}
+          isExtension={isExtension}
+        />
+      )}
     </div>
   );
 };
