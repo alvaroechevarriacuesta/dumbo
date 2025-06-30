@@ -5,6 +5,7 @@ import { useExtensionChat } from '../hooks/useExtensionChat';
 import { extensionSupabase } from '../../lib/extension-supabase';
 import Button from '../../components/ui/Button';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import Modal from '../../components/ui/Modal';
 import { useState, useEffect } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import ExtensionContextInfoModal from './ExtensionContextInfoModal';
@@ -14,6 +15,7 @@ const ExtensionSidebar: React.FC = () => {
   const [newContextName, setNewContextName] = useState('');
   const [selectedContextInfo, setSelectedContextInfo] = useState<{id: string, name: string} | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { close } = useSidebar();
   const { 
     activeContextId, 
@@ -73,6 +75,7 @@ const ExtensionSidebar: React.FC = () => {
   const handleLogout = async () => {
     try {
       await extensionSupabase.auth.signOut();
+      setShowLogoutConfirm(false);
     } catch (error) {
       console.error('Failed to logout:', error);
     }
@@ -115,7 +118,7 @@ const ExtensionSidebar: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleLogout}
+              onClick={() => setShowLogoutConfirm(true)}
               className="p-1 text-error-600 hover:text-error-700 hover:bg-error-50 dark:text-error-400 dark:hover:text-error-300 dark:hover:bg-error-900/20"
             >
               <X className="h-4 w-4" />
@@ -279,6 +282,34 @@ const ExtensionSidebar: React.FC = () => {
           onClose={() => setSelectedContextInfo(null)}
         />
       )}
+
+      {/* Logout Confirmation Modal */}
+      <Modal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        title="Confirm Logout"
+        className="max-w-sm"
+      >
+        <div className="space-y-4">
+          <p className="text-secondary-700 dark:text-secondary-300">
+            Are you sure you want to log out?
+          </p>
+          <div className="flex justify-end space-x-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowLogoutConfirm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleLogout}
+              className="bg-error-600 hover:bg-error-700 text-white"
+            >
+              Log Out
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 };
