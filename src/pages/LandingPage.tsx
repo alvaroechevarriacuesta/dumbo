@@ -299,7 +299,7 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="px-6 py-20 bg-secondary-800">
+      <section id="features" className="px-6 py-20">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-6">
@@ -388,7 +388,7 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Comparison Table */}
-      <section className="px-6 py-20 bg-secondary-800">
+      <section className="px-6 py-20">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-6">
@@ -442,7 +442,7 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="px-6 py-20 bg-secondary-800">
+      <section id="faq" className="px-6 py-20">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-6">
