@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, User, Plus, Info, Check } from 'lucide-react';
+import { X, User, Plus, MoreHorizontal, Check } from 'lucide-react';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useExtensionChat } from '../hooks/useExtensionChat';
 import { extensionSupabase } from '../../lib/extension-supabase';
@@ -96,33 +96,6 @@ const ExtensionSidebar: React.FC = () => {
           </Button>
         </div>
 
-        {/* User Profile */}
-        <div className="p-4 border-b border-secondary-200 dark:border-secondary-700">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary-200 dark:bg-secondary-700">
-              <div className="w-full h-full flex items-center justify-center">
-                <User className="h-6 w-6 text-secondary-500" />
-              </div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-secondary-900 dark:text-white truncate">
-                {session?.user?.email?.split('@')[0] || 'User'}
-              </p>
-              <p className="text-xs text-secondary-500 dark:text-secondary-400 truncate">
-                {session?.user?.email || 'Loading...'}
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="p-1 text-error-600 hover:text-error-700 hover:bg-error-50 dark:text-error-400 dark:hover:text-error-300 dark:hover:bg-error-900/20"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
         {/* Content Area */}
         <div className="flex-1 flex flex-col">
           {/* Error State */}
@@ -176,7 +149,7 @@ const ExtensionSidebar: React.FC = () => {
           {!isLoading && !error && contexts.length > 0 && (
             <>
               {/* Add Context Button */}
-              <div className="p-4 border-b border-secondary-200 dark:border-secondary-700">
+              <div className="px-4 pt-6 pb-6">
                 {isAddingContext ? (
                   <div className="flex items-center space-x-2">
                     <input
@@ -207,7 +180,7 @@ const ExtensionSidebar: React.FC = () => {
                   <Button
                     onClick={handleAddContext}
                     variant="outline"
-                    className="w-full justify-center"
+                    className="w-full justify-center py-3"
                     size="sm"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -232,7 +205,7 @@ const ExtensionSidebar: React.FC = () => {
                         }`}
                         onClick={() => selectContext(context.id)}
                       >
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm font-medium truncate ${
                               isActive
@@ -251,12 +224,12 @@ const ExtensionSidebar: React.FC = () => {
                           </div>
                           
                           {/* Info Button */}
-                          <div className="flex items-center justify-center">
+                          <div className="flex items-center justify-center ml-3 flex-shrink-0">
                             <button
                               onClick={(e) => handleShowContextInfo(context.id, context.name, e)}
-                              className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-600 dark:text-secondary-400"
+                              className="p-2 rounded-md hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-500 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-200 transition-colors"
                             >
-                              <Info className="h-4 w-4" />
+                              <MoreHorizontal className="h-4 w-4" />
                             </button>
                           </div>
                         </div>
@@ -267,6 +240,33 @@ const ExtensionSidebar: React.FC = () => {
               </div>
             </>
           )}
+        </div>
+
+        {/* User Profile - Moved to bottom */}
+        <div className="p-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary-200 dark:bg-secondary-700">
+              <div className="w-full h-full flex items-center justify-center">
+                <User className="h-6 w-6 text-secondary-500" />
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-secondary-900 dark:text-white truncate">
+                {session?.user?.email?.split('@')[0] || 'User'}
+              </p>
+              <p className="text-xs text-secondary-500 dark:text-secondary-400 truncate">
+                {session?.user?.email || 'Loading...'}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="p-1 text-error-600 hover:text-error-700 hover:bg-error-50 dark:text-error-400 dark:hover:text-error-300 dark:hover:bg-error-900/20"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 

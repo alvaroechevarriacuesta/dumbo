@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Plus, Info, Check, FileText, Loader2 } from 'lucide-react';
+import { X, User, Plus, MoreHorizontal, Check, FileText, Loader2 } from 'lucide-react';
 import { useExtensionChat } from '../hooks/useExtensionChat';
 import { extensionSupabase } from '../../lib/extension-supabase';
 import { ContentProcessor } from '../../services/contentProcessor';
@@ -268,7 +268,7 @@ const ExtensionPopup: React.FC<ExtensionPopupProps> = ({ isOpen, onClose, domTex
           {!isLoading && !error && contexts.length > 0 && (
             <>
               {/* Add Context Button */}
-              <div className="p-4 border-b border-secondary-200 dark:border-secondary-700">
+              <div className="px-4 pt-6 pb-6 border-b border-secondary-200 dark:border-secondary-700">
                 {isAddingContext ? (
                   <div className="flex items-center space-x-2">
                     <input
@@ -299,7 +299,7 @@ const ExtensionPopup: React.FC<ExtensionPopupProps> = ({ isOpen, onClose, domTex
                   <Button
                     onClick={handleAddContext}
                     variant="outline"
-                    className="w-full justify-center"
+                    className="w-full justify-center py-3"
                     size="sm"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -324,7 +324,7 @@ const ExtensionPopup: React.FC<ExtensionPopupProps> = ({ isOpen, onClose, domTex
                             : 'hover:bg-secondary-100 dark:hover:bg-secondary-700 border border-transparent'
                         }`}
                       >
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-center justify-between">
                           <div 
                             className="flex-1 min-w-0 cursor-pointer"
                             onClick={() => {
@@ -379,12 +379,12 @@ const ExtensionPopup: React.FC<ExtensionPopupProps> = ({ isOpen, onClose, domTex
                           </div>
                           
                           {/* Info Button */}
-                          <div className="flex items-center justify-center ml-2">
+                          <div className="flex items-center justify-center ml-3 flex-shrink-0">
                             <button
                               onClick={(e) => handleShowContextInfo(context.id, context.name, e)}
-                              className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-600 dark:text-secondary-400"
+                              className="p-2 rounded-md hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-500 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-200 transition-colors"
                             >
-                              <Info className="h-4 w-4" />
+                              <MoreHorizontal className="h-4 w-4" />
                             </button>
                           </div>
                         </div>

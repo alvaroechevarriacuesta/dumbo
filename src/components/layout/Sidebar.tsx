@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, User, Plus, Info, Check } from 'lucide-react';
+import { X, User, Plus, MoreHorizontal, Check } from 'lucide-react';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
@@ -71,33 +71,6 @@ const Sidebar: React.FC = () => {
           >
             <X className="h-5 w-5" />
           </Button>
-        </div>
-
-        {/* User Profile */}
-        <div className="p-4 border-b border-secondary-200 dark:border-secondary-700">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary-200 dark:bg-secondary-700">
-              {user?.avatar ? (
-                <img
-                  src={user.avatar}
-                  alt={user.username}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <User className="h-6 w-6 text-secondary-500" />
-                </div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-secondary-900 dark:text-white truncate">
-                {user?.username}
-              </p>
-              <p className="text-xs text-secondary-500 dark:text-secondary-400 truncate">
-                {user?.email}
-              </p>
-            </div>
-          </div>
         </div>
 
         {/* Content Area */}
@@ -188,7 +161,7 @@ const Sidebar: React.FC = () => {
           {!isLoading && !error && contexts.length > 0 && (
             <>
               {/* Add Context Button */}
-              <div className="p-4 border-b border-secondary-200 dark:border-secondary-700">
+              <div className="px-4 pt-6 pb-6">
                 {isAddingContext ? (
                   <div className="flex items-center space-x-2">
                     <input
@@ -219,7 +192,7 @@ const Sidebar: React.FC = () => {
                   <Button
                     onClick={handleAddContext}
                     variant="outline"
-                    className="w-full justify-center"
+                    className="w-full justify-center py-3"
                     size="sm"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -244,7 +217,7 @@ const Sidebar: React.FC = () => {
                         }`}
                         onClick={() => selectContext(context.id)}
                       >
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm font-medium truncate ${
                               isActive
@@ -263,12 +236,12 @@ const Sidebar: React.FC = () => {
                           </div>
                           
                           {/* Info Button */}
-                          <div className="flex items-center justify-center">
+                          <div className="flex items-center justify-center ml-3 flex-shrink-0">
                             <button
                             onClick={(e) => handleShowContextInfo(context.id, context.name, e)}
-                              className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-600 dark:text-secondary-400"
+                              className="p-2 rounded-md hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-500 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-200 transition-colors"
                           >
-                              <Info className="h-4 w-4" />
+                              <MoreHorizontal className="h-4 w-4" />
                           </button>
                           </div>
                         </div>
@@ -279,6 +252,33 @@ const Sidebar: React.FC = () => {
               </div>
             </>
           )}
+        </div>
+
+        {/* User Profile - Moved to bottom */}
+        <div className="p-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary-200 dark:bg-secondary-700">
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user.username}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <User className="h-6 w-6 text-secondary-500" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-secondary-900 dark:text-white truncate">
+                {user?.username}
+              </p>
+              <p className="text-xs text-secondary-500 dark:text-secondary-400 truncate">
+                {user?.email}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
