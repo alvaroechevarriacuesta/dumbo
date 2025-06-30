@@ -1,5 +1,6 @@
 import React from 'react';
 import { Menu, Sun, Moon, LogOut, Home } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -11,10 +12,16 @@ const Header: React.FC = () => {
   const { isOpen, toggle } = useSidebar();
   const { logout } = useAuth();
   const { activeContextId, selectContext } = useChat();
+  const navigate = useNavigate();
 
   const handleGoHome = () => {
     // Deselect current context to show welcome screen
     selectContext('');
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
   };
 
   return (
@@ -80,7 +87,7 @@ const Header: React.FC = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={logout}
+            onClick={handleLogout}
             className="p-3 text-error-600 hover:text-error-700 hover:bg-error-50 dark:text-error-400 dark:hover:text-error-300 dark:hover:bg-error-900/20"
           >
             <LogOut className="h-6 w-6" />

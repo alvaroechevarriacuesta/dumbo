@@ -16,7 +16,7 @@ const AuthPage: React.FC = () => {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/chat" replace />;
   }
 
   return <AuthForm />;
