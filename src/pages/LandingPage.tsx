@@ -73,7 +73,7 @@ const LandingPage: React.FC = () => {
   const features = [
     {
       icon: WifiOff,
-      title: "Offline First",
+      title: "Private Knowledge Base",
       description: "Use your data, even when it is not on the web"
     },
     {
