@@ -81,7 +81,7 @@ const Sidebar: React.FC = () => {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-0">
           {/* Error State */}
           {error && (
             <div className="p-4">
@@ -101,7 +101,7 @@ const Sidebar: React.FC = () => {
 
           {/* Loading State */}
           {isLoading && !error && (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex-1 flex items-center justify-center min-h-0">
               <div className="text-center">
                 <LoadingSpinner size="md" className="mx-auto mb-2" />
                 <p className="text-sm text-secondary-500 dark:text-secondary-400">
@@ -113,7 +113,7 @@ const Sidebar: React.FC = () => {
 
           {/* Empty State */}
           {!isLoading && !error && contexts.length === 0 && (
-            <div className="flex-1 flex flex-col p-4">
+            <div className="flex-1 flex flex-col p-4 min-h-0">
               <div className="text-center mb-6">
                 <p className="text-secondary-600 dark:text-secondary-400 mb-4">
                   No contexts yet
@@ -124,7 +124,7 @@ const Sidebar: React.FC = () => {
               </div>
               
               {/* Add Context Input */}
-              <div className="flex-1 flex flex-col justify-center">
+              <div className="flex-1 flex flex-col justify-center min-h-0">
                 {isAddingContext ? (
                   <div className="flex items-center space-x-2">
                     <input
@@ -168,7 +168,7 @@ const Sidebar: React.FC = () => {
           {!isLoading && !error && contexts.length > 0 && (
             <>
               {/* Add Context Button */}
-              <div className="px-4 pt-6 pb-6">
+              <div className="px-4 pt-6 pb-6 flex-shrink-0">
                 {isAddingContext ? (
                   <div className="flex items-center space-x-2">
                     <input
@@ -209,7 +209,7 @@ const Sidebar: React.FC = () => {
               </div>
 
               {/* Context List */}
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto min-h-0">
                 <div className="p-2">
                   {contexts.map((context) => {
                     const isActive = activeContextId === context.id;
@@ -262,7 +262,7 @@ const Sidebar: React.FC = () => {
         </div>
 
         {/* User Profile - Moved to bottom */}
-        <div className="p-4">
+        <div className="p-4 flex-shrink-0 border-t border-secondary-200 dark:border-secondary-700">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary-200 dark:bg-secondary-700">
               {user?.avatar ? (
