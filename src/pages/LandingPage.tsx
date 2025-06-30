@@ -216,7 +216,7 @@ const LandingPage: React.FC = () => {
               
               <p className="text-xl md:text-2xl text-secondary-300 mb-12 max-w-4xl mx-auto leading-relaxed">
                 An AI chat assistant that only answers from your saved web pages and documents. 
-                Works offline. No unreliable sources. Keep your concepts separate.
+                Keep your concepts separate.
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
@@ -343,11 +343,15 @@ const LandingPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-4 gap-8">
+          <div className="relative grid md:grid-cols-4 gap-8 items-center">
+            {/* Continuous line behind steps */}
+            <div className="hidden md:block absolute left-[10%] right-[10%] top-[35px] z-0 h-1 pointer-events-none">
+              <div className="w-full h-full bg-gradient-to-r from-primary-600 via-accent-600 to-primary-600 opacity-60 blur-[1px] rounded-full"></div>
+            </div>
             {steps.map((step, index) => (
               <div
                 key={index}
-                className={`relative text-center transition-all duration-500 ${
+                className={`relative text-center transition-all duration-500 z-10 ${
                   activeStep === index ? 'scale-105' : ''
                 }`}
               >
@@ -369,18 +373,6 @@ const LandingPage: React.FC = () => {
                 <p className="text-secondary-300">
                   {step.description}
                 </p>
-                
-                {/* Connection line */}
-                {index < steps.length - 1 && (
-                  <div className="hidden md:block absolute top-10 left-full w-full h-0.5 bg-secondary-700 -translate-x-1/2 z-0">
-                    <div 
-                      className="h-full bg-gradient-to-r from-primary-600 to-accent-600 transition-all duration-1000"
-                      style={{ 
-                        width: activeStep > index ? '100%' : '0%' 
-                      }}
-                    ></div>
-                  </div>
-                )}
               </div>
             ))}
           </div>
