@@ -18,7 +18,7 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="bg-secondary-50 dark:bg-secondary-900 px-6 py-4 min-h-[72px] flex items-center border-b border-secondary-200 dark:border-secondary-700">
+    <header className="bg-secondary-50 dark:bg-secondary-900 px-6 py-4 min-h-[72px] flex items-center">
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center space-x-6">
           {/* Toggle Button - Only shows when sidebar is closed */}
