@@ -263,7 +263,7 @@ const ChatInterface: React.FC = () => {
                 </div>
               ))}
               
-              {isStreaming && (
+              {isStreaming && getCurrentMessages().length > 0 && getCurrentMessages()[getCurrentMessages().length - 1].content.trim() === '' && (
                 <div className="group">
                   <div className="mr-auto max-w-none">
                     <div className="flex items-center py-6">
@@ -271,21 +271,6 @@ const ChatInterface: React.FC = () => {
                         <div className="w-3 h-3 bg-primary-400 rounded-full animate-bounce"></div>
                         <div className="w-3 h-3 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                         <div className="w-3 h-3 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Invisible placeholder to maintain scroll position when thinking indicator is hidden */}
-              {!isStreaming && (
-                <div className="group opacity-0 pointer-events-none">
-                  <div className="mr-auto max-w-none">
-                    <div className="flex items-center py-6">
-                      <div className="flex space-x-1">
-                        <div className="w-3 h-3 bg-primary-400 rounded-full"></div>
-                        <div className="w-3 h-3 bg-primary-400 rounded-full"></div>
-                        <div className="w-3 h-3 bg-primary-400 rounded-full"></div>
                       </div>
                     </div>
                   </div>

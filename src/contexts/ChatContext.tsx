@@ -313,16 +313,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtensio
       const openaiService = getOpenAIService();
       let fullResponse = '';
       let chunkBuffer = '';
-      let hasStartedStreaming = false;
       const CHUNK_DELAY = 20; // Reduced delay for more responsive streaming
 
       for await (const chunk of openaiService.streamChatCompletion(conversationHistory, state.activeContextId, isExtension)) {
         chunkBuffer += chunk;
-        
-        // Hide the thinking indicator once we start receiving content
-        if (!hasStartedStreaming && chunkBuffer.trim().length > 0) {
-          hasStartedStreaming = true;
-        }
         
         // Process characters one by one with a small delay for smooth streaming
         while (chunkBuffer.length > 0) {
@@ -332,6 +326,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtensio
           chunkBuffer = chunkBuffer.slice(charsToAdd);
           
           fullResponse += nextChars;
+          
+          // Stop streaming indicator once we have actual content
+          if (fullResponse.trim().length > 0) {
+            dispatch({ type: 'STOP_STREAMING' });
+            dispatch({ type: 'START_STREAMING', payload: assistantMessage.id });
+          }
           
           // Update the message in real-time with delay
           dispatch({
