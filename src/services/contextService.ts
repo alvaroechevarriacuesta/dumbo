@@ -215,7 +215,7 @@ export class ContextService {
     }
 
     try {
-      const { data: user } = await supabase.auth.getUser();
+      const { data: user } = await supabaseClient.auth.getUser();
       const userId = user.user?.id;
 
       if (!userId) {
@@ -225,7 +225,7 @@ export class ContextService {
       // Generate file path without timestamp - will fail if file exists
       const filePath = `${userId}/contexts/${contextId}/${file.name}`;
       // Upload to Supabase Storage
-      const { error } = await supabase.storage
+      const { error } = await supabaseClient.storage
         .from('files')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -256,6 +256,7 @@ export class ContextService {
   }
 
   static async processFileContent(file: File, fileId: string, isExtension: boolean = false): Promise<void> {
+    const supabaseClient = this.getSupabaseClient(isExtension);
     try {
       let textContent: string;
 
@@ -267,14 +268,60 @@ export class ContextService {
         throw new Error('Unsupported file type');
       }
 
-      // Create embeddings and chunks
-      const chunks = EmbeddingService.chunkText(textContent);
-      const embeddedChunks = await EmbeddingService.generateEmbeddings(chunks);
+      // Update file with extracted content
+      const { error: updateError } = await supabaseClient
+        .from('files')
+        .update({ 
+          content: textContent,
+          processing_status: 'processing'
+        })
+        .eq('id', fileId);
+
+      if (updateError) {
+        throw new Error(`Failed to update file content: ${updateError.message}`);
+      }
+
+      // Process content into chunks and embeddings
+      const metadata = {
+        fileId,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+      };
+
+      const embeddedChunks = await EmbeddingService.processTextContent(textContent, metadata);
+
+      // Save chunks to database
       await ChunkService.saveChunks(embeddedChunks, fileId, undefined, isExtension);
 
-      console.log(`Successfully processed file ${file.name} with ${embeddedChunks.length} chunks`);
+      // Mark file as completed
+      const { error: completeError } = await supabaseClient
+        .from('files')
+        .update({ processing_status: 'completed' })
+        .eq('id', fileId);
+
+      if (completeError) {
+        throw new Error(`Failed to mark file as completed: ${completeError.message}`);
+      }
+
+      // Import toast dynamically to avoid circular dependencies
+      const { default: toast } = await import('react-hot-toast');
+      toast.success(`File "${file.name}" processed successfully! ${embeddedChunks.length} chunks created.`);
     } catch (error) {
-      console.error('Error processing file content:', error);
+      // Mark file as failed and store error
+      const errorMessage = error instanceof Error ? error.message : 'Unknown processing error';
+
+      await supabaseClient
+        .from('files')
+        .update({ 
+          processing_status: 'failed',
+          processing_error: errorMessage
+        })
+        .eq('id', fileId);
+
+      // Import toast dynamically to avoid circular dependencies
+      const { default: toast } = await import('react-hot-toast');
+      toast.error(`Failed to process file "${file.name}": ${errorMessage}`);
       throw error;
     }
   }

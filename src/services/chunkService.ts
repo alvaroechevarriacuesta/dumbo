@@ -47,6 +47,8 @@ export class ChunkService {
       .insert(chunksToInsert)
       .select();
 
+    console.log('ChunkService: Saved chunks:', data);
+
     if (error) {
       throw new Error(`Failed to save chunks: ${error.message}`);
     }
@@ -217,9 +219,15 @@ export class ChunkService {
     // If it's a string, try to parse it
     if (typeof embedding === 'string') {
       try {
-        return JSON.parse(embedding);
-      } catch (error) {
-        console.warn('Failed to parse embedding string:', error);
+        // Remove brackets and split by commas
+        const cleanString = embedding.replace(/[[\]]/g, '');
+        const values = cleanString.split(',').map(val => parseFloat(val.trim()));
+
+        // Filter out any NaN values
+        const validValues = values.filter(val => !isNaN(val));
+
+        return validValues;
+      } catch {
         return [];
       }
     }
