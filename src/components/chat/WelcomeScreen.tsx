@@ -100,7 +100,7 @@ const WelcomeScreen: React.FC = () => {
                   className="group relative p-6 bg-secondary-50 dark:bg-secondary-800 rounded-xl border border-secondary-200 dark:border-secondary-700 hover:border-primary-300 dark:hover:border-primary-600 transition-all duration-200 cursor-pointer hover:shadow-lg hover:scale-[1.02]"
                 >
                   {/* Context Info Button */}
-                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-4 right-4">
                     <button
                       onClick={(e) => handleShowContextInfo(context.id, context.name, e)}
                       className="p-2 rounded-md hover:bg-secondary-200 dark:hover:bg-secondary-700 text-secondary-500 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-200 transition-colors"
@@ -111,7 +111,9 @@ const WelcomeScreen: React.FC = () => {
                   </div>
 
                   <div className="flex items-start justify-between mb-4">
-                    <ArrowRight className="w-5 h-5 text-secondary-400 group-hover:text-primary-500 transition-colors duration-200" />
+                    <div className="w-12 h-12 bg-gradient-to-r from-primary-500 to-accent-500 rounded-lg flex items-center justify-center">
+                      <MessageCircle className="w-6 h-6 text-white" />
+                    </div>
                   </div>
                   
                   <h3 className="text-lg font-semibold text-secondary-900 dark:text-white mb-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200">
