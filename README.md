@@ -113,13 +113,9 @@ src/
 ```bash
 # Development
 npm run dev                    # Start web app development server
-npm run dev:extension         # Start extension development
-npm run dev:extension-v2      # Start extension v2 development
 
 # Building
 npm run build                 # Build web app for production
-npm run build:extension       # Build extension for production
-npm run build:extension-v2    # Build extension v2 for production
 
 # Code Quality
 npm run lint                  # Run ESLint
@@ -134,7 +130,7 @@ The project includes a Chrome extension that allows users to:
 - Process current page content with AI
 
 To develop the extension:
-1. Run `npm run build:extension`
+1. Run `npm run build`
 2. Load the `dist` folder as an unpacked extension in Chrome
 3. Use keyboard shortcuts:
    - `Ctrl+K` (or `Cmd+K`): Toggle side panel
@@ -145,7 +141,6 @@ To develop the extension:
 The application supports multiple build modes:
 - **Web App**: Standard React application
 - **Extension**: Chrome extension with side panel
-- **Extension V2**: Enhanced extension version
 
 ## 🔐 Security
 
@@ -190,20 +185,6 @@ The application supports multiple build modes:
 - **TXT**: Direct text processing
 - **Web Content**: Browser extension content extraction
 
-## 🎨 UI/UX Features
-
-### Design System
-- **Apple-level aesthetics**: Clean, sophisticated visual design
-- **Consistent spacing**: 8px grid system
-- **Typography**: Inter font with proper hierarchy
-- **Color system**: Comprehensive color ramps with dark mode support
-
-### Interactions
-- **Smooth animations**: Thoughtful micro-interactions
-- **Responsive design**: Mobile-first approach
-- **Accessibility**: WCAG compliant with proper contrast ratios
-- **Progressive disclosure**: Context-aware UI elements
-
 ## 🚀 Deployment
 
 ### Web Application
@@ -215,7 +196,7 @@ npm run build
 ```
 
 ### Chrome Extension
-1. Build the extension: `npm run build:extension`
+1. Build the extension: `npm run build`
 2. Package the `dist` folder
 3. Submit to Chrome Web Store or distribute as unpacked extension
 
@@ -225,44 +206,3 @@ npm run build
 3. Run database migrations
 4. Configure authentication settings
 5. Set up storage buckets for file uploads
-
-## 🤝 Contributing
-
-### Development Workflow
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes following the coding standards
-4. Run tests and linting: `npm run lint`
-5. Commit your changes: `git commit -m 'Add amazing feature'`
-6. Push to the branch: `git push origin feature/amazing-feature`
-7. Open a Pull Request
-
-### Coding Standards
-- **TypeScript**: Strict type checking enabled
-- **ESLint**: Configured with React and TypeScript rules
-- **File Organization**: Modular architecture with clear separation of concerns
-- **Component Design**: Single responsibility principle
-- **Error Handling**: Comprehensive error boundaries and validation
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **OpenAI** for providing powerful AI models and embeddings
-- **Supabase** for the excellent backend-as-a-service platform
-- **React Team** for the amazing React framework
-- **Tailwind CSS** for the utility-first CSS framework
-- **Vite** for the fast build tool and development experience
-
-## 📞 Support
-
-For support, questions, or feature requests:
-- Open an issue on GitHub
-- Check the documentation in the `docs` folder
-- Review the code comments for implementation details
-
----
-
-**Built with ❤️ using modern web technologies**
