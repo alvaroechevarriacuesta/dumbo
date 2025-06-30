@@ -74,7 +74,7 @@ const Sidebar: React.FC = () => {
         </div>
 
         {/* User Profile */}
-        <div className="p-4 border-b border-secondary-200 dark:border-secondary-700">
+        <div className="p-4">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary-200 dark:bg-secondary-700">
               {user?.avatar ? (
@@ -188,7 +188,7 @@ const Sidebar: React.FC = () => {
           {!isLoading && !error && contexts.length > 0 && (
             <>
               {/* Add Context Button */}
-              <div className="p-4 border-b border-secondary-200 dark:border-secondary-700">
+              <div className="p-4">
                 {isAddingContext ? (
                   <div className="flex items-center space-x-2">
                     <input
