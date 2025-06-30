@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, User, Plus, Info, Check } from 'lucide-react';
+import { X, User, Plus, MoreHorizontal, Check } from 'lucide-react';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useExtensionChat } from '../hooks/useExtensionChat';
 import { extensionSupabase } from '../../lib/extension-supabase';
@@ -224,12 +224,12 @@ const ExtensionSidebar: React.FC = () => {
                           </div>
                           
                           {/* Info Button */}
-                          <div className="flex items-center justify-center">
+                          <div className="flex items-center justify-center ml-2">
                             <button
                               onClick={(e) => handleShowContextInfo(context.id, context.name, e)}
-                              className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-600 dark:text-secondary-400"
+                              className="p-1.5 rounded-md hover:bg-secondary-200 dark:hover:bg-secondary-600 text-secondary-500 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-200 transition-colors"
                             >
-                              <Info className="h-4 w-4" />
+                              <MoreHorizontal className="h-4 w-4" />
                             </button>
                           </div>
                         </div>
