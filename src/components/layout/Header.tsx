@@ -35,11 +35,18 @@ const Header: React.FC = () => {
           
           {/* Bolt Badge */}
           <div className="flex items-center">
-            <img 
-              src={theme === 'dark' ? '/bolt-badge-dark.svg' : '/bolt-badge-light.svg'}
-              alt="Powered by Bolt"
-              className="h-8"
-            />
+            <a 
+              href="https://bolt.new/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="transition-opacity hover:opacity-80"
+            >
+              <img 
+                src={theme === 'dark' ? '/bolt-badge-dark.svg' : '/bolt-badge-light.svg'}
+                alt="Powered by Bolt"
+                className="h-8"
+              />
+            </a>
           </div>
         </div>
 
