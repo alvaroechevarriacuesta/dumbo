@@ -102,7 +102,7 @@ const WelcomeScreen: React.FC = () => {
                   <div className="absolute top-3 right-3 z-10">
                     <button
                       onClick={(e) => handleShowContextInfo(context.id, context.name, e)}
-                      className="p-3 rounded-lg bg-white dark:bg-secondary-700 shadow-md hover:shadow-lg border border-secondary-200 dark:border-secondary-600 hover:bg-secondary-50 dark:hover:bg-secondary-600 text-secondary-600 dark:text-secondary-300 hover:text-secondary-800 dark:hover:text-secondary-100 transition-all duration-200"
+                      className="p-3 rounded-lg bg-secondary-50 dark:bg-secondary-800 shadow-md hover:shadow-lg border border-secondary-200 dark:border-secondary-600 hover:bg-secondary-100 dark:hover:bg-secondary-700 text-secondary-600 dark:text-secondary-300 hover:text-secondary-800 dark:hover:text-secondary-100 transition-all duration-200"
                       title="Context settings"
                     >
                       <MoreHorizontal className="h-5 w-5" />
