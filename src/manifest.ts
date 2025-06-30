@@ -10,7 +10,6 @@ export default defineManifest({
     "commands",
     "tabs",
     "storage",
-    "storage.local",
     "activeTab",
     "scripting"
   ],
