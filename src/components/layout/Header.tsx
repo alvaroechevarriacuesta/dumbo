@@ -1,14 +1,21 @@
 import React from 'react';
-import { Menu, Sun, Moon, LogOut } from 'lucide-react';
+import { Menu, Sun, Moon, LogOut, Home } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useChat } from '../../contexts/ChatContext';
 import Button from '../ui/Button';
 
 const Header: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const { isOpen, toggle } = useSidebar();
   const { logout } = useAuth();
+  const { activeContextId, selectContext } = useChat();
+
+  const handleGoHome = () => {
+    // Deselect current context to show welcome screen
+    selectContext('');
+  };
 
   return (
     <header className="bg-secondary-50 dark:bg-secondary-900 px-4 py-3 min-h-[57px] flex items-center">
@@ -28,6 +35,19 @@ const Header: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-2">
+          {/* Home Button - Only show when a context is active */}
+          {activeContextId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleGoHome}
+              className="p-2"
+              title="Go to home screen"
+            >
+              <Home className="h-5 w-5" />
+            </Button>
+          )}
+
           <Button
             variant="ghost"
             size="sm"

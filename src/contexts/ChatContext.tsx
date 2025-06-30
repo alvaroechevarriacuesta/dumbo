@@ -210,7 +210,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, isExtensio
   };
 
   const selectContext = (contextId: string) => {
-    dispatch({ type: 'SELECT_CONTEXT', payload: contextId });
+    // Allow empty string to deselect context (show welcome screen)
+    dispatch({ type: 'SELECT_CONTEXT', payload: contextId || null });
   };
 
   const loadMessages = async (contextId: string): Promise<void> => {
