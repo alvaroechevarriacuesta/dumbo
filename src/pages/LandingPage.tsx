@@ -165,7 +165,7 @@ const LandingPage: React.FC = () => {
                     </Button>
                   </Link>
                   <a 
-                    href="https://github.com/alvaroechevarriacuesta/dumbo" 
+                    href="https://github.com/alvaroechevarriacuesta/dumbo?tab=readme-ov-file#-chrome-extension-installation" 
                     target="_blank" 
                     rel="noopener noreferrer"
                   >
@@ -177,7 +177,7 @@ const LandingPage: React.FC = () => {
                 </div>
               ) : (
                 <a 
-                  href="https://github.com/alvaroechevarriacuesta/dumbo" 
+                  href="https://github.com/alvaroechevarriacuesta/dumbo?tab=readme-ov-file#-chrome-extension-installation" 
                   target="_blank" 
                   rel="noopener noreferrer"
                 >
@@ -198,7 +198,7 @@ const LandingPage: React.FC = () => {
                 </Link>
               ) : (
                 <a 
-                  href="https://github.com/alvaroechevarriacuesta/dumbo" 
+                  href="https://github.com/alvaroechevarriacuesta/dumbo?tab=readme-ov-file#-chrome-extension-installation" 
                   target="_blank" 
                   rel="noopener noreferrer"
                 >
@@ -245,7 +245,7 @@ const LandingPage: React.FC = () => {
                       </Button>
                     </Link>
                     <a 
-                      href="https://github.com/alvaroechevarriacuesta/dumbo" 
+                      href="https://github.com/alvaroechevarriacuesta/dumbo?tab=readme-ov-file#-chrome-extension-installation" 
                       target="_blank" 
                       rel="noopener noreferrer"
                     >
@@ -258,7 +258,7 @@ const LandingPage: React.FC = () => {
                 ) : (
                   <>
                     <a 
-                      href="https://github.com/alvaroechevarriacuesta/dumbo" 
+                      href="https://github.com/alvaroechevarriacuesta/dumbo?tab=readme-ov-file#-chrome-extension-installation" 
                       target="_blank" 
                       rel="noopener noreferrer"
                     >
@@ -515,7 +515,7 @@ const LandingPage: React.FC = () => {
                   </Button>
                 </Link>
                 <a 
-                  href="https://github.com/alvaroechevarriacuesta/dumbo" 
+                  href="https://github.com/alvaroechevarriacuesta/dumbo?tab=readme-ov-file#-chrome-extension-installation" 
                   target="_blank" 
                   rel="noopener noreferrer"
                 >
@@ -532,7 +532,7 @@ const LandingPage: React.FC = () => {
             ) : (
               <>
                 <a 
-                  href="https://github.com/alvaroechevarriacuesta/dumbo" 
+                  href="https://github.com/alvaroechevarriacuesta/dumbo?tab=readme-ov-file#-chrome-extension-installation" 
                   target="_blank" 
                   rel="noopener noreferrer"
                 >
