@@ -91,6 +91,10 @@ const ChatInterface: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const scrollToTop = () => {
+    messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Scroll to bottom when context changes or messages are first loaded
   useEffect(() => {
     if (activeContextId && hasMessages) {
@@ -101,12 +105,23 @@ const ChatInterface: React.FC = () => {
     }
   }, [activeContextId, hasMessages]);
 
-  // Auto-scroll when streaming
+  // Auto-scroll to bottom when streaming or when new messages are added
   useEffect(() => {
-    if (isStreaming) {
+    if (isStreaming || messages.length > 0) {
       scrollToBottom();
     }
-  }, [isStreaming, messages.length]);
+  }, [isStreaming, messages]);
+
+  // Scroll to bottom when streaming content updates
+  useEffect(() => {
+    if (isStreaming) {
+      const scrollInterval = setInterval(() => {
+        scrollToBottom();
+      }, 100); // Scroll every 100ms during streaming
+
+      return () => clearInterval(scrollInterval);
+    }
+  }, [isStreaming]);
 
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
@@ -123,6 +138,9 @@ const ChatInterface: React.FC = () => {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || isStreaming || !activeContextId) return;
+    
+    // Scroll to top when sending a new message
+    scrollToTop();
     
     await sendMessage(message);
     setMessage('');
