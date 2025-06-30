@@ -80,6 +80,105 @@ A modern, intelligent chat application with Retrieval-Augmented Generation (RAG)
    - Web app: `http://localhost:5173`
    - Extension development: Load the `dist` folder as an unpacked extension in Chrome
 
+## 🔧 Chrome Extension Installation
+
+### Option 1: Using Pre-built Extension (Recommended)
+
+If you have the `dist.zip` file, follow these detailed steps to install the Chrome extension:
+
+#### Step 1: Extract the Extension Files
+
+1. **Locate the `dist.zip` file** in your project directory
+2. **Right-click** on `dist.zip` and select **"Extract All..."** (Windows) or **"Open With > Archive Utility"** (Mac)
+3. **Choose a location** to extract the files (e.g., your Desktop or Documents folder)
+4. **Remember the path** to the extracted `dist` folder - you'll need it in the next steps
+
+#### Step 2: Enable Chrome Developer Mode
+
+1. **Open Google Chrome** on your computer
+2. **Navigate to the Extensions page** by typing `chrome://extensions/` in the address bar and pressing Enter
+   - Alternatively, click the three dots menu (⋮) → **More tools** → **Extensions**
+3. **Enable Developer mode** by clicking the toggle switch in the top-right corner of the Extensions page
+   - The toggle should turn blue when enabled
+   - You'll see new buttons appear: "Load unpacked", "Pack extension", and "Update"
+
+#### Step 3: Load the Extension
+
+1. **Click the "Load unpacked" button** that appeared after enabling Developer mode
+2. **Navigate to the extracted `dist` folder** using the file browser that opens
+3. **Select the `dist` folder** (not the files inside it, but the folder itself)
+4. **Click "Select Folder"** (Windows) or **"Open"** (Mac)
+
+#### Step 4: Verify Installation
+
+1. **Check the Extensions page** - you should see "Extendo Dumbo" listed with a toggle switch
+2. **Ensure the extension is enabled** - the toggle should be blue/on
+3. **Look for the extension icon** in your Chrome toolbar (it may be hidden in the extensions menu)
+
+#### Step 5: Pin the Extension (Optional but Recommended)
+
+1. **Click the puzzle piece icon** (🧩) in the Chrome toolbar to open the extensions menu
+2. **Find "Extendo Dumbo"** in the list
+3. **Click the pin icon** (📌) next to it to pin it to your toolbar for easy access
+
+#### Step 6: Test the Extension
+
+1. **Click the Extendo Dumbo icon** in your toolbar to open the side panel
+2. **Try the keyboard shortcuts**:
+   - **Ctrl+K** (or **Cmd+K** on Mac): Toggle the side panel
+   - **Ctrl+J** (or **Cmd+J** on Mac): Save the current page to a context
+3. **Sign in** with your account credentials
+4. **Create a context** and start chatting with your AI assistant
+
+### Option 2: Building from Source
+
+If you want to build the extension yourself:
+
+1. **Build the extension**
+
+   ```bash
+   npm run build
+   ```
+
+2. **Follow steps 2-6 from Option 1** using the newly created `dist` folder
+
+### Troubleshooting Extension Installation
+
+#### Common Issues and Solutions:
+
+**"This extension may have been corrupted" error:**
+- Make sure you selected the `dist` folder, not individual files
+- Try extracting the zip file again to a different location
+- Ensure all files were extracted properly
+
+**Extension doesn't appear in the toolbar:**
+- Check if it's hidden in the extensions menu (puzzle piece icon)
+- Make sure the extension is enabled on the Extensions page
+- Try refreshing the Extensions page and reloading the extension
+
+**Keyboard shortcuts don't work:**
+- Check if other extensions are using the same shortcuts
+- Go to `chrome://extensions/shortcuts` to view and modify keyboard shortcuts
+- Make sure you're on a regular webpage (shortcuts don't work on Chrome's internal pages)
+
+**Side panel doesn't open:**
+- Make sure you're using Chrome version 114 or later (side panel feature requirement)
+- Try clicking the extension icon directly instead of using keyboard shortcuts
+- Check the browser console for any error messages
+
+**Authentication issues:**
+- Ensure your `.env` file has the correct Supabase credentials
+- Check that the Supabase project is properly configured
+- Verify that the extension has internet access
+
+#### Getting Help:
+
+If you encounter issues:
+1. **Check the browser console** (F12 → Console tab) for error messages
+2. **Visit the Extensions page** (`chrome://extensions/`) and look for error messages
+3. **Try disabling and re-enabling** the extension
+4. **Reload the extension** by clicking the refresh icon on the Extensions page
+
 ## 🏗️ Architecture
 
 ### Tech Stack
@@ -204,3 +303,11 @@ The application supports multiple build modes:
 - **PDF**: Automatic text extraction using PDF.js
 - **TXT**: Direct text processing
 - **Web Content**: Browser extension content extraction
+
+## 🌐 Live Demo
+
+The web application is deployed and available at: [https://inquisitive-queijadas-10c7ab.netlify.app](https://inquisitive-queijadas-10c7ab.netlify.app)
+
+## 📝 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
